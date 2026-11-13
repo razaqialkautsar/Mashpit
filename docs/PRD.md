@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Versi | v1 (draf), 13 Nov 2026 |
-| Tim | Razaqi (smart contract), Bayu (frontend) |
+| Tim | Razaqi (smart contract + keeper agent), Bayu (frontend) |
 | Hackathon | NEAR HACKATHON 2026; deadline submisi 14 Nov 2026, 23:59 UTC |
 | Track | AI Swarms (utama), Open Innovation (kedua) |
 | Dokumen terkait | [SMART_CONTRACT_SPEC.md](SMART_CONTRACT_SPEC.md), [FRONTEND_SPEC.md](FRONTEND_SPEC.md) |
@@ -38,7 +38,7 @@ Waktu tersisa saat dokumen ditulis: sekitar 36 jam (13 Nov 11:15 UTC sampai 14 N
 | P1 | Job tambahan: `ping` staking pool testnet; `epoch_stake` LiNEAR dengan aturan "harus mengembalikan `true`" | Memperlihatkan verifikasi hasil |
 | **Di luar MVP** | Pembayaran lewat NEAR Intents, reward token NEP-141, opsi AI 2 (bahasa alami → job), lelang untuk N > 1 eksekusi, mainnet, reputasi keeper, audit | Lihat §3.2 |
 
-**Keputusan yang dibutuhkan** ada di §12, termasuk siapa yang membangun keeper agent (tidak termasuk peran "smart contract" maupun "frontend").
+**Keputusan yang dibutuhkan** ada di §12. Keeper agent dikerjakan Razaqi (keputusan tim, 13 Nov).
 
 ---
 
@@ -315,7 +315,7 @@ Semua metrik dibaca dari view method kontrak (tanpa backend analitik):
 | Risiko | Dampak | Mitigasi |
 | --- | --- | --- |
 | Waktu tidak cukup (±36 jam, 2 orang) | Demo tidak lengkap | Kerjakan P0 dulu; P1 hanya kalau P0 selesai; slashing bisa ditunjukkan lewat unit test kalau tidak sempat di testnet |
-| Keeper agent belum punya pemilik (§12) | Bagian inti tidak dikerjakan | Putuskan di awal |
+| Beban kerja Razaqi besar (kontrak + keeper agent) | Keeper agent atau slashing tidak selesai | Kerjakan keeper dengan aturan cadangan deterministik dulu, baru tambahkan keputusan AI; P1 kontrak dikerjakan setelah keeper P0 jalan; Bayu membantu bagian keeper berbasis TypeScript kalau dashboard P0 selesai lebih cepat |
 | Callback/gas salah hitung → eksekusi gagal | Job demo gagal | Integration test dengan near-workspaces; uji di testnet sebelum demo |
 | Model AI lambat/gagal | Keeper melewatkan fase commit | Aturan cadangan deterministik (FR-K3) |
 | `epoch_update_rewards` tidak berguna kalau sudah dipanggil pihak lain di epoch itu | Eksekusi "sia-sia" tetap dibayar (fungsi tidak mengembalikan nilai) | Diakui sebagai keterbatasan; demo `epoch_stake` dengan `ReturnsTrue` (P1) sebagai pembanding |
@@ -416,13 +416,15 @@ Mashpit/
 
 ## 10. Rencana kerja dan pembagian tim (usulan)
 
-| Waktu (UTC) | Razaqi (smart contract) | Bayu (frontend) | Pemilik belum ditentukan (§12) |
-| --- | --- | --- | --- |
-| 13 Nov, s/d 15:00 | Skeleton kontrak, types, keeper + job registry | Skeleton web, koneksi RPC, baca view LiNEAR testnet sebagai uji koneksi | — |
-| 13 Nov, 15:00–24:00 | Lelang commit-reveal, execute + callback, unit test | Halaman Live, detail job, keeper (pakai ABI view dari spec) | Skeleton keeper agent |
-| 14 Nov, 00:00–10:00 | Integration test (mock target), deploy testnet, `seed-jobs` | Hubungkan ke kontrak testnet; form buat job (P1) | Keeper: commit/reveal/execute + AI + cadangan |
-| 14 Nov, 10:00–18:00 | Slashing (P1), job `ping` + `epoch_stake` (P1), perbaikan | Tampilan memo AI, riwayat, failover; polish | 3 keeper berjalan di server; uji failover |
-| 14 Nov, 18:00–23:00 | README bagian kontrak, rekam demo | README bagian web, rekam demo, post X | Submisi (ditinjau manusia), buffer |
+| Waktu (UTC) | Razaqi (smart contract + keeper agent) | Bayu (frontend) |
+| --- | --- | --- |
+| 13 Nov, s/d 15:00 | Skeleton kontrak, types, registry keeper + job; deploy versi awal dengan view method secepatnya | Skeleton web, koneksi RPC, uji koneksi dengan view LiNEAR testnet |
+| 13 Nov, 15:00–24:00 | Lelang commit-reveal, execute + callback, unit test | Halaman Live, detail job, keeper (memakai bentuk view dari spec) |
+| 14 Nov, 00:00–06:00 | Integration test (mock target), deploy testnet, `create-keepers`, `seed-jobs` | Hubungkan ke kontrak testnet; form buat job (P1) |
+| 14 Nov, 06:00–14:00 | Keeper agent: commit/reveal/execute dengan aturan cadangan, lalu keputusan AI; 3 keeper berjalan di Railway | Tampilan memo AI, riwayat, failover; polish |
+| 14 Nov, 14:00–19:00 | Slashing (P1), uji failover, job `ping` + `epoch_stake` (P1) | Bantu keeper kalau dashboard P0 selesai; README bagian web |
+| 14 Nov, 19:00–23:00 | README bagian kontrak + keeper, rekam demo | Rekam demo, post X | 
+| 14 Nov, 23:00–23:59 | Submisi (payload ditinjau berdua), buffer | |
 
 ---
 
@@ -440,7 +442,7 @@ Mashpit/
 
 | # | Keputusan | Usulan |
 | --- | --- | --- |
-| D1 | Siapa membangun keeper agent (TypeScript + NEAR AI)? | Dibagi dua setelah P0 masing-masing selesai, atau Bayu karena sama-sama TypeScript. Keputusan tim |
+| D1 | Siapa membangun keeper agent (TypeScript + NEAR AI)? | **Diputuskan 13 Nov: Razaqi** |
 | D2 | Setuju dengan batas MVP §0.1? | — |
 | D3 | Persona utama untuk pitch | P1 (operator protokol liquid staking) |
 | D4 | Framework web | Vite + React + TypeScript (situs statis). Keputusan Bayu |
