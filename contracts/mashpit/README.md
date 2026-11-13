@@ -14,6 +14,10 @@ Product context: [`docs/PRD.md`](../../docs/PRD.md).
 Status: unit-tested and **deployed to testnet** at `contract.mashpit.testnet`
 (13 Nov 2026, [deploy transaction](https://explorer.testnet.near.org/transactions/9C6L4zuKoixUDg288wVSAV6Y7u7AnSc75e9dfRSHy42Y)),
 initialized with the default config below (owner and treasury: `mashpit.testnet`).
+Code upgraded the same day without migration
+([upgrade transaction](https://explorer.testnet.near.org/transactions/4ryjYDwStZP3Dr8NVwYCyJZJraGAwvG2dSZjGmqHEPKq)):
+`get_round` / `get_job` now return each commit's `hash`, so a keeper that restarts between commit
+and reveal can recover its bid (see "Bid recovery" below).
 
 Try a view call:
 
@@ -172,6 +176,13 @@ keeper agent can call with a function-call key.
 Commit hash: `sha256(utf8("{bid_yocto}:{salt}:{keeper_account_id}"))`, base64-encoded in the call.
 
 Winner: lowest bid, then earliest commit block, then the smaller account id. No randomness is used.
+
+#### Bid recovery
+
+The reference keeper derives its salt from a secret plus `job_id` and `round_id`, and bids only on
+a 1% grid of `max_reward`. After a restart it reads its commit `hash` from `get_round`, tries the
+101 grid values off-chain, and reveals the one that matches. It needs no stored state. The contract
+itself accepts any bid up to `max_reward`; the grid is a keeper convention.
 
 ### Views
 
