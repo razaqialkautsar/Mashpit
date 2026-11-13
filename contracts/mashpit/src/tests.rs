@@ -259,3 +259,20 @@ fn only_owner_sets_config() {
     ctx("someone.testnet", 100, 0);
     c.set_config(ConfigPatch::default());
 }
+
+#[test]
+fn round_view_exposes_commit_hash_for_bid_recovery() {
+    let mut c = setup();
+    register(&mut c, "k1.testnet", 5 * NEAR);
+    let id = new_job(&mut c, NEAR / 10);
+    let bid = NEAR / 10 * 37 / 100; // a bid on a 1% grid of max_reward
+    commit(&mut c, "k1.testnet", id, bid, "s1", 110);
+
+    let round = c.get_round(id).unwrap();
+    let mine = round.commits.iter().find(|x| x.keeper == acc("k1.testnet")).unwrap();
+    // A restarted keeper recovers the bid by scanning the grid against its own hash.
+    let recovered = (0..=100u128)
+        .map(|step| NEAR / 10 * step / 100)
+        .find(|b| commit_hash(*b, "s1", "k1.testnet").to_vec() == mine.hash.0);
+    assert_eq!(recovered, Some(bid));
+}
