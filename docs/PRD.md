@@ -6,11 +6,11 @@
 | Tim | Razaqi (smart contract), Bayu (frontend) |
 | Hackathon | NEAR HACKATHON 2026; deadline submisi 14 Nov 2026, 23:59 UTC |
 | Track | AI Swarms (utama), Open Innovation (kedua) |
-| Dokumen terkait | [SMART_CONTRACT_SPEC.md](SMART_CONTRACT_SPEC.md), [FRONTEND_SPEC.md](FRONTEND_SPEC.md), riset: [../NEAR-Hackathon-2026-Riset-Ide.md](../NEAR-Hackathon-2026-Riset-Ide.md) |
+| Dokumen terkait | [SMART_CONTRACT_SPEC.md](SMART_CONTRACT_SPEC.md), [FRONTEND_SPEC.md](FRONTEND_SPEC.md) |
 
 **Cara membaca dokumen ini.** Setiap pernyataan diberi salah satu label:
 
-- **Fakta** — bersumber; detail sumber ada di dokumen riset atau ditautkan langsung.
+- **Fakta** — bersumber; sumbernya ditautkan langsung.
 - **Rancangan** — keputusan desain tim, belum dibangun.
 - **Usulan** — pendapat yang menunggu keputusan tim.
 - **Asumsi** — hal yang dianggap benar tapi belum diverifikasi.
@@ -49,11 +49,11 @@ Waktu tersisa saat dokumen ditulis: sekitar 36 jam (13 Nov 11:15 UTC sampai 14 N
 **Fakta:**
 
 1. "Smart contracts cannot execute automatically; they must be called by an external account" ([docs.near.org](https://docs.near.org/smart-contracts/what-is)). Yield/resume hanya bisa menunggu sampai 200 blok ([docs](https://docs.near.org/smart-contracts/anatomy/yield-resume)).
-2. Di hackathon ini, minimal **22 dari 454 repo peserta** yang dipindai membangun keeper atau bot sendiri yang mengirim transaksi ke kontrak NEAR. Minimal 7 memakai GitHub Actions terjadwal, minimal 3 memakai proses yang berjalan terus (riset, bagian "Bukti dari repo peserta").
+2. Di hackathon ini, minimal **22 dari 454 repo peserta** yang dipindai membangun keeper atau bot sendiri yang mengirim transaksi ke kontrak NEAR. Minimal 7 memakai GitHub Actions terjadwal, minimal 3 memakai proses yang berjalan terus. Metode: pemindaian repo GitHub publik yang ditautkan peserta (13 Nov 2026), lalu pemeriksaan manual baris kode yang mengirim transaksi. Contoh: [Trueque](https://github.com/jafetchvdev/trueque), [Tenor](https://github.com/avishrakshe/Tenor), [FlashFirm](https://github.com/0xcaptain888/flashfirm), [Slay the Bear](https://github.com/vibe-code-guy/slay-the-bear), [NEAR Books](https://github.com/IhorMuliar/nearbooks), [Auvora](https://github.com/arsenicbreaker/auvorafinance).
 3. Protokol liquid staking membutuhkan pemanggilan berkala oleh pihak luar:
-   - LiNEAR: "This function is expected to be called in each epoch" dan "Actions that should be called by off-chain actors" ([epoch_actions.rs](https://github.com/linear-protocol/LiNEAR/blob/main/contracts/linear/src/epoch_actions.rs)). Di mainnet, 100 transaksi terakhir ke `linear-protocol.near` (13 Nov 06:11–09:09 UTC) semuanya `epoch_*` dari **satu akun**, `governorlin.near`.
+   - LiNEAR: "This function is expected to be called in each epoch" dan "Actions that should be called by off-chain actors" ([epoch_actions.rs](https://github.com/linear-protocol/LiNEAR/blob/main/contracts/linear/src/epoch_actions.rs)). Di mainnet, 100 transaksi terakhir ke `linear-protocol.near` (13 Nov 06:11–09:09 UTC) semuanya `epoch_*` dari **satu akun**, `governorlin.near` (data dari [NearBlocks API v3](https://api.nearblocks.io/api-docs/migration), endpoint `/v3/accounts/linear-protocol.near/txns`).
    - Meta Pool: `distribute_rewards` "Should be called once per epoch per sp"; README-nya mencantumkan to-do "External cron to call distribute()" ([repo](https://github.com/Meta-Pool/liquid-staking-contract)).
-   - Docs NEAR Node: "A ping should be issued each epoch to keep reported rewards current on the pool contract." ([near-nodes.io](https://near-nodes.io/validator/compile-and-run-a-node)). Di mainnet banyak pihak memanggil `ping` sendiri-sendiri, kadang pada menit yang sama.
+   - Docs NEAR Node: "A ping should be issued each epoch to keep reported rewards current on the pool contract." ([near-nodes.io](https://near-nodes.io/validator/compile-and-run-a-node)). Di mainnet banyak pihak memanggil `ping` sendiri-sendiri, kadang pada menit yang sama; contohnya di `peerfolio.pool.near`, akun `watcher07.ref-watchdog.near` dan `watcher08.ref-watchdog.near` memanggil pada menit yang sama (NearBlocks API v3, 13 Nov 2026).
 4. Fungsi-fungsi di atas bisa dipanggil siapa saja, tapi **pemanggilnya tidak diberi imbalan** oleh kontrak (LiNEAR, Meta Pool, staking pool).
 5. Alternatif yang dipakai developer, GitHub Actions terjadwal, punya batasan resmi: interval minimal 5 menit; jadwal "can be delayed" dan "some queued jobs may be dropped" saat beban tinggi; nonaktif otomatis di repo publik setelah 60 hari tanpa aktivitas ([docs GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)). Satu tim hackathon menulis: "GitHub's scheduler skips many of that job's slots" ([Code Blue](https://github.com/0xNoramiya/rosc)).
 6. Preseden: CronCat (awalnya "Cron.near", didanai grant NEAR Foundation 2021) pernah membangun scheduler untuk NEAR. Aktivitas organisasinya terakhir 26 Des 2023 ([forum](https://gov.near.org/t/cron-near-grantee-update-1-mar-27/1046), [repo](https://github.com/Cron-Near/contracts)).
@@ -80,7 +80,7 @@ Waktu tersisa saat dokumen ditulis: sekitar 36 jam (13 Nov 11:15 UTC sampai 14 N
 
 ### 2.1 Persona
 
-| Persona | Siapa (contoh nyata dari riset) | Kebutuhan | Fakta pendukung |
+| Persona | Siapa (contoh nyata) | Kebutuhan | Fakta pendukung |
 | --- | --- | --- | --- |
 | **P1. Operator protokol** | Tim protokol liquid staking (LiNEAR, Meta Pool) | Fungsi pemeliharaan per epoch tetap jalan tanpa bergantung pada satu bot | Fungsi `epoch_*`/`distribute_*` terbuka untuk siapa saja; di mainnet LiNEAR dijalankan satu akun |
 | **P2. Developer dApp** | Tim seperti Auvora, LastKey Bunker, Slay the Bear | Eksekusi berkala yang andal tanpa merawat server/cron sendiri | Auvora: keeper sendiri, tanpa imbalan; LastKey: warisan via GitHub Actions; Slay the Bear: perlu eksekusi 15 detik setelah beacon |
@@ -138,7 +138,7 @@ Persona utama untuk pitch adalah **keputusan tim** (§12). Usulan: P1, karena bu
 | Job yang melampirkan deposit ke kontrak target | MVP hanya mendukung `attached_deposit = 0` |
 | Reputasi keeper, `max_reward` dinamis | Pasca-hackathon |
 | Deploy mainnet, audit | Pasca-hackathon |
-| Deteksi "pihak lain sudah memanggil duluan" untuk job tanpa nilai kembalian | Tidak bisa dibaca dari kontrak lain (riset, keterbatasan `ping`) |
+| Deteksi "pihak lain sudah memanggil duluan" untuk job tanpa nilai kembalian | `ping` tidak mengembalikan nilai dan tidak ada view method untuk `last_epoch_height` ([staking-pool](https://github.com/near/core-contracts/tree/master/staking-pool)), jadi kontrak lain tidak bisa membacanya |
 
 ---
 
@@ -320,7 +320,7 @@ Semua metrik dibaca dari view method kontrak (tanpa backend analitik):
 | Model AI lambat/gagal | Keeper melewatkan fase commit | Aturan cadangan deterministik (FR-K3) |
 | `epoch_update_rewards` tidak berguna kalau sudah dipanggil pihak lain di epoch itu | Eksekusi "sia-sia" tetap dibayar (fungsi tidak mengembalikan nilai) | Diakui sebagai keterbatasan; demo `epoch_stake` dengan `ReturnsTrue` (P1) sebagai pembanding |
 | `epoch_stake` testnet mengembalikan `false` karena tidak ada stake baru | Demo `ReturnsTrue` tidak menunjukkan pembayaran | Deposit ≥ 1 NEAR ke LiNEAR testnet sebelum demo (`MIN_AMOUNT_TO_PERFORM_STAKE = ONE_NEAR`) |
-| Juri bertanya "kenapa tidak GitHub Actions?" | Nilai produk dipertanyakan | Siapkan tabel perbandingan (riset) dan contoh LastKey/Code Blue/Slay the Bear |
+| Juri bertanya "kenapa tidak GitHub Actions?" | Nilai produk dipertanyakan | Siapkan perbandingan berdasarkan batasan resmi GitHub Actions (§1.1 butir 5) dan contoh [LastKey Bunker](https://github.com/mastrophot/lastkey-bunker), [Code Blue](https://github.com/0xNoramiya/rosc), [Slay the Bear](https://github.com/vibe-code-guy/slay-the-bear) |
 | Juri menganggap unsur AI kurang | Kecocokan track AI Swarms | Tampilkan alasan AI per tawaran di dashboard; opsional tanya panitia |
 | Keeper berkolusi / sedikit | Lelang tidak menurunkan harga | Batas `max_reward`; pemilik job bisa menjadi keeper sendiri; diakui sebagai keterbatasan |
 
@@ -359,7 +359,7 @@ Semua metrik dibaca dari view method kontrak (tanpa backend analitik):
 - Kontrak: Rust, near-sdk 5.x, dibangun dengan cargo-near.
 - Keeper: TypeScript (Node), near-api-js; proses berjalan terus.
 - Dashboard: TypeScript, situs statis; membaca kontrak lewat RPC publik.
-- Tidak ada database atau API pusat milik tim. Server hanya menjalankan proses keeper (riset: "Apakah perlu backend").
+- Tidak ada database atau API pusat milik tim. Server hanya menjalankan proses keeper, karena kontrak tidak bisa berjalan sendiri (§1.1 butir 1).
 
 ---
 
@@ -370,7 +370,6 @@ Mashpit/
 ├── README.md                       # "do X - see Y" untuk juri (Q-017)
 ├── LICENSE                         # MIT (Q-014)
 ├── HACKATHON.md                    # salinan aturan resmi
-├── NEAR-Hackathon-2026-Riset-Ide.md# riset
 ├── .gitignore                      # .env, target/, node_modules/, keeper state
 ├── docs/
 │   ├── PRD.md
@@ -454,7 +453,11 @@ Mashpit/
 
 ## 13. Referensi
 
-- Riset lengkap dan sumber: [../NEAR-Hackathon-2026-Riset-Ide.md](../NEAR-Hackathon-2026-Riset-Ide.md)
+- Data submisi hackathon: API resmi `https://nearhackathon.com/api/projects` (dipakai halaman [nearhackathon.com](https://nearhackathon.com/))
+- Data on-chain: RPC publik NEAR dan [NearBlocks API v3](https://api.nearblocks.io/api-docs/migration)
+- GitHub Actions: [schedule event](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule), [disabling workflows](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-workflow-runs/disabling-and-enabling-a-workflow)
+- Liquid staking: [LiNEAR](https://github.com/linear-protocol/LiNEAR), [Meta Pool](https://github.com/Meta-Pool/liquid-staking-contract); staking pool: [near/core-contracts](https://github.com/near/core-contracts/tree/master/staking-pool)
+- Preseden: [Cron-Near/contracts](https://github.com/Cron-Near/contracts), [forum grant Cron.near](https://gov.near.org/t/cron-near-grantee-update-1-mar-27/1046)
 - Aturan hackathon: [../HACKATHON.md](../HACKATHON.md), [prompt contoh Swarms](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/tracks/05-swarms.md)
 - NEAR docs: [cross-contract](https://docs.near.org/smart-contracts/anatomy/crosscontract), [storage staking](https://docs.near.org/protocol/storage/storage-staking), [gas](https://docs.near.org/protocol/transactions/gas), [random](https://docs.near.org/smart-contracts/security/random), [wallet login](https://docs.near.org/web3-apps/tutorials/wallet-login)
 - LiNEAR: [repo](https://github.com/linear-protocol/LiNEAR)
