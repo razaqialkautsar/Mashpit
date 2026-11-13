@@ -227,6 +227,9 @@ pub enum Phase {
 #[derive(Clone, Debug)]
 pub struct CommitView {
     pub keeper: AccountId,
+    /// The sealed commit hash (32 bytes, base64). Lets a keeper that restarted between commit
+    /// and reveal recover its bid by checking candidate bids against its own hash off-chain.
+    pub hash: Base64VecU8,
     pub block: u64,
     pub bond: U128,
     pub revealed: bool,

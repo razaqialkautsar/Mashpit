@@ -1,6 +1,6 @@
 //! Read-only methods for the dashboard and keeper agents. See docs/SMART_CONTRACT_SPEC.md §4.6.
 
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::{AccountId, env, near};
 
 use crate::MashpitExt;
@@ -24,6 +24,7 @@ impl Mashpit {
                 .iter()
                 .map(|c| CommitView {
                     keeper: c.keeper.clone(),
+                    hash: Base64VecU8(c.hash.to_vec()),
                     block: c.block,
                     bond: U128(c.bond),
                     revealed: c.revealed,
