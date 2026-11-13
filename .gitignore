@@ -1,0 +1,20 @@
+# Local tool settings
+.claude/
+
+# Internal research notes (not part of the submission)
+NEAR-Hackathon-2026-Riset-Ide.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Rust / NEAR contract build output
+target/
+
+# Node / web build output
+node_modules/
+dist/
+
+# Keeper local state (commit-reveal salts)
+keeper/state/
