@@ -195,7 +195,7 @@ Detail method, struktur data, dan error ada di [SMART_CONTRACT_SPEC.md](SMART_CO
 | NFR-1 | Total gas per transaksi `execute` (gas target + callback + overhead) ≤ 300 Tgas | Docs NEAR berbeda soal batas prepaid gas (300 Tgas di halaman environment, 1.000 Tgas di halaman gas); 300 Tgas dipilih sebagai batas aman |
 | NFR-2 | Storage yang dibuat oleh pengguna dibayar oleh pengguna (deposit ≥ pertambahan storage × 1E19 yoctoNEAR/byte) | [Docs storage staking](https://docs.near.org/protocol/storage/storage-staking) |
 | NFR-3 | Data yang tumbuh tak terbatas dibatasi (riwayat per job maks N entri; memo maks M byte) | Turunan NFR-2 |
-| NFR-4 | Tidak ada private key atau API key di repo atau riwayat git | HACKATHON.md (aturan secrets); SUBMITTING.md |
+| NFR-4 | Tidak ada private key atau API key di repo atau riwayat git | HACKATHON.md (aturan secrets); checklist [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) di repo prompt contoh |
 | NFR-5 | Dashboard memperbarui data dalam ≤ 5 detik (polling RPC) | Waktu blok terukur ~0,58 detik; usulan |
 | NFR-6 | Dashboard bisa diakses tanpa login dan berjalan sebagai situs statis | Q-009 (RPC publik gratis); Q-012 (hosted demo nilai plus) |
 | NFR-7 | Keeper referensi berjalan di minimal 2–3 mesin/proses terpisah dan tetap hidup sampai 18 Nov (ideal 25 Nov) | Q-012; desain failover |
@@ -271,7 +271,7 @@ Wireframe kasar per halaman ada di [FRONTEND_SPEC.md §4](FRONTEND_SPEC.md#4-wir
 
 ### 6.2 Release criteria (submisi hackathon)
 
-Dari [HACKATHON.md](../HACKATHON.md) dan SUBMITTING.md:
+Dari [HACKATHON.md](../HACKATHON.md) (aturan resmi) dan checklist [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) di repo prompt contoh `nearai/near-hackathon-prompt-examples`. Repo prompt contoh itu disebut HACKATHON.md sebagai "a starting point, not a requirement"; isi checklist-nya sejalan dengan aturan resmi:
 
 - [ ] Repo publik sebelum 2026-11-14T23:59:00Z, dengan LICENSE.
 - [ ] README untuk pembaca mesin dan manusia: apa produknya, masalahnya, langkah "do X - see Y". Tanpa bahasa marketing.
