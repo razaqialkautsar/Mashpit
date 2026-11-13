@@ -1,0 +1,24 @@
+{
+  "name": "mashpit-keeper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reference keeper agent for the Mashpit keeper market on NEAR",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "near-api-js": "7.5.3",
+    "tsx": "4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2"
+  }
+}
