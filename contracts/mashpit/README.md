@@ -11,7 +11,15 @@ and the run opens to every keeper.
 Full specification: [`docs/SMART_CONTRACT_SPEC.md`](../../docs/SMART_CONTRACT_SPEC.md).
 Product context: [`docs/PRD.md`](../../docs/PRD.md).
 
-Status: unit-tested, **not deployed yet**.
+Status: unit-tested and **deployed to testnet** at `contract.mashpit.testnet`
+(13 Nov 2026, [deploy transaction](https://explorer.testnet.near.org/transactions/9C6L4zuKoixUDg288wVSAV6Y7u7AnSc75e9dfRSHy42Y)),
+initialized with the default config below (owner and treasury: `mashpit.testnet`).
+
+Try a view call:
+
+```sh
+near contract call-function as-read-only contract.mashpit.testnet get_config json-args '{}' network-config testnet now
+```
 
 ## Layout
 
@@ -85,7 +93,7 @@ method an agent calls needs no deposit (commit bonds are locked from stake).
 
 ```sh
 # Register with a stake (full-access key, run locally)
-near contract call-function as-transaction contract.mashpit.testnet register_keeper empty-args \
+near contract call-function as-transaction contract.mashpit.testnet register_keeper json-args '{}' \
   prepaid-gas '30 Tgas' attached-deposit '2 NEAR' \
   sign-as k1.mashpit.testnet network-config testnet sign-with-legacy-keychain send
 
