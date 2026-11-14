@@ -11,6 +11,7 @@ import {
   Circle,
   Droplets,
   FlaskConical,
+  ListChecks,
   Loader,
   PenLine,
   TriangleExclamationPoint,
@@ -179,6 +180,7 @@ export function NewJobForm() {
     example === "linear"
       ? "LiNEAR needs at least 125 Tgas for this call."
       : "Gas for your method alone. Unused gas is refunded to the keeper that runs it.";
+  const callGasLimit = config ? maxGas - config.callback_gas_tgas - config.overhead_gas_tgas : undefined;
 
   return (
     <div className="grid gap-6 md:gap-8">
@@ -241,6 +243,32 @@ export function NewJobForm() {
                   </div>
                 </div>
               </div>
+            </Row>
+
+            <Row title="Is it keeper-ready?" text="Check your method before you post. A call that always fails never pays anyone.">
+              <ul className="grid gap-3 text-sm text-ink-2">
+                {[
+                  <>
+                    <b className="text-ink">Anyone may call it.</b> The caller will be the Mashpit contract (
+                    <code className="font-mono text-[13px] text-ink">{near.contractId}</code>), not your own bot account.
+                  </>,
+                  <>
+                    <b className="text-ink">No attached deposit.</b> Mashpit always calls with 0 NEAR attached.
+                  </>,
+                  <>
+                    <b className="text-ink">Safe to call again.</b> A failed run stays due and may be retried, so a repeated call must do no harm.
+                  </>,
+                  <>
+                    <b className="text-ink">Fits the gas limit.</b> At most {callGasLimit ?? "—"} Tgas for your method; Mashpit keeps the rest for the
+                    callback that checks the result.
+                  </>,
+                ].map((item, i) => (
+                  <li key={i} className="flex gap-3">
+                    <ListChecks aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
             </Row>
 
             <Row title="Gas" text={gasHint}>
