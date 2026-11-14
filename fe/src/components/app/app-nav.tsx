@@ -11,6 +11,7 @@ import { formatInt } from "@/lib/format";
 import { near } from "@/lib/near";
 import { routes } from "@/lib/routes";
 import { usePoll } from "@/hooks/use-poll";
+import { logoClass, NavShell, useScrolled } from "../nav-shell";
 import { WalletButton } from "../wallet/wallet-button";
 
 const links: { href: string; label: string; icon: LucideIcon }[] = [
@@ -31,20 +32,45 @@ function BackLabel({ label }: { label: string }) {
   return <>{id && /^\d+$/.test(id) ? `${label} #${id}` : label}</>;
 }
 
+/** Network and current block. Fixed width, so nothing shifts when the block arrives. */
+function NetworkChip() {
+  const { data: stats } = usePoll(getStats);
+  return (
+    <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-line-strong px-3 py-2 text-[13px] font-semibold md:px-4">
+      <span aria-hidden="true" className="size-2 rounded-full bg-ok md:hidden" />
+      {near.network}
+      <span aria-hidden="true" className="hidden h-3.5 w-px bg-line-strong md:block" />
+      {/* 13ch holds "#277,636,783" in the mono face; the dash keeps that width while loading. */}
+      <span title="Current block" className="hidden w-[13ch] font-mono text-xs font-medium text-ink-2 tabular-nums md:inline-block">
+        #{stats ? formatInt(stats.current_block) : "—"}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Dashboard navbar: the same frame and scroll behaviour as the landing one
+ * (see NavShell), with the dashboard links in the middle. Phones get a tab
+ * bar along the bottom instead, and detail pages swap the logo for a back button.
+ */
 export function AppNav({ back, hideTabs = false }: { back?: MobileBack; hideTabs?: boolean }) {
   const path = usePathname().replace(/\/$/, "") || "/";
-  const { data: stats } = usePoll(getStats);
+  const scrolled = useScrolled();
+
+  const home = (
+    <Link href="/" aria-label="Mashpit home" className={back ? "hidden md:block" : ""}>
+      <Image src={logo} alt="" unoptimized className={logoClass(scrolled)} />
+    </Link>
+  );
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-line bg-bg/90 backdrop-blur-md">
-        <div className="wrap flex h-16 items-center justify-between gap-3 md:h-[76px]">
-          {/* Phones on a detail page swap the logo for a back button + title. */}
-          {back ? (
-            <>
-              <Link href="/" aria-label="Mashpit home" className="hidden md:block">
-                <Image src={logo} alt="" className="h-7 w-auto" unoptimized />
-              </Link>
+      <NavShell
+        scrolled={scrolled}
+        left={
+          <>
+            {home}
+            {back && (
               <Link href={back.href} className="flex items-center gap-3 md:hidden">
                 <span className="grid size-10 place-items-center rounded-full border border-line-strong">
                   <ArrowLeft aria-hidden="true" className="size-4" />
@@ -59,46 +85,39 @@ export function AppNav({ back, hideTabs = false }: { back?: MobileBack; hideTabs
                   )}
                 </span>
               </Link>
-            </>
-          ) : (
-            <Link href="/" aria-label="Mashpit home">
-              <Image src={logo} alt="" className="h-7 w-auto" unoptimized />
-            </Link>
-          )}
-
-          <nav aria-label="Dashboard" className="hidden gap-1 rounded-full border border-line-strong bg-surface p-1 md:flex">
-            {links.map(({ href, label, icon: Icon }) => {
+            )}
+          </>
+        }
+        center={
+          <nav aria-label="Dashboard" className="contents">
+            {links.map(({ href, label }) => {
               const active = isActive(path, href);
               return (
                 <Link
                   key={href}
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                    active ? "bg-surface-3 text-ink" : "text-ink-2 hover:text-ink"
-                  }`}
+                  className={`relative text-[15px] font-medium transition-colors ${active ? "text-ink" : "text-ink-2 hover:text-ink"}`}
                 >
-                  <Icon aria-hidden="true" className={`size-4 ${active ? "text-accent" : ""}`} />
                   {label}
+                  {/* Active page: a small accent dot under the label. */}
+                  <span
+                    aria-hidden="true"
+                    className={`absolute -bottom-2.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-accent transition-opacity ${active ? "opacity-100" : "opacity-0"}`}
+                  />
                 </Link>
               );
             })}
           </nav>
-
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex items-center gap-2 rounded-full border border-line-strong px-3 py-2 text-[13px] font-semibold md:px-4">
-              <span aria-hidden="true" className="size-2 rounded-full bg-ok md:hidden" />
-              {near.network}
-              <span aria-hidden="true" className="hidden h-3.5 w-px bg-line-strong md:block" />
-              <span className="hidden font-mono text-xs font-medium text-ink-2 tabular-nums md:inline" title="Current block">
-                #{stats ? formatInt(stats.current_block) : "—"}
-              </span>
-            </span>
+        }
+        right={
+          <>
+            <NetworkChip />
             <WalletButton className="hidden md:inline-flex" />
             <WalletButton compact className="md:hidden" />
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {!hideTabs && (
         <nav
