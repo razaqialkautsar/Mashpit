@@ -1,7 +1,7 @@
 //! Execution, callback and slashing. See docs/SMART_CONTRACT_SPEC.md §4.5 and §5.3–5.5.
 
 use near_sdk::json_types::U128;
-use near_sdk::{Gas, NearToken, Promise, env, near};
+use near_sdk::{Gas, NearToken, Promise, PromiseError, env, near};
 
 use crate::MashpitExt;
 use crate::errors::{ensure, fail};
@@ -134,17 +134,7 @@ impl Mashpit {
             return Outcome::Failed;
         };
 
-        let outcome = match (&result, &job.success_rule) {
-            (Err(_), _) => Outcome::Failed,
-            (Ok(_), SuccessRule::Any) => Outcome::Paid,
-            (Ok(bytes), SuccessRule::ReturnsTrue) => {
-                if bytes.as_slice() == b"true" {
-                    Outcome::Paid
-                } else {
-                    Outcome::ReturnedFalse
-                }
-            }
-        };
+        let outcome = outcome_for(&result, &job.success_rule);
 
         let block = env::block_height();
         let epoch = env::epoch_height();
@@ -225,5 +215,26 @@ impl Mashpit {
                 "the winner's exclusive window has not ended (or the job is not due)",
             ),
         }
+    }
+}
+
+/// Map the target call's result to an outcome. A call that succeeded but returned more than
+/// `MAX_RESULT_LEN` bytes (`TooLong`) still succeeded: it satisfies `Any`, and it cannot be
+/// `true` under `ReturnsTrue`.
+pub(crate) fn outcome_for(result: &Result<Vec<u8>, PromiseError>, rule: &SuccessRule) -> Outcome {
+    match (result, rule) {
+        (Err(PromiseError::Failed), _) => Outcome::Failed,
+        (Err(PromiseError::TooLong(_)), SuccessRule::Any) => Outcome::Paid,
+        (Err(PromiseError::TooLong(_)), SuccessRule::ReturnsTrue) => Outcome::ReturnedFalse,
+        (Ok(_), SuccessRule::Any) => Outcome::Paid,
+        (Ok(bytes), SuccessRule::ReturnsTrue) => {
+            if bytes.as_slice() == b"true" {
+                Outcome::Paid
+            } else {
+                Outcome::ReturnedFalse
+            }
+        }
+        // PromiseError is non-exhaustive; treat any future variant as a failed call.
+        (Err(_), _) => Outcome::Failed,
     }
 }
