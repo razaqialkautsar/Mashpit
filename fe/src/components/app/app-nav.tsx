@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { ArrowLeft, Plus, Radio, Users, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Plus, Radio, ShieldCheck, Users, type LucideIcon } from "lucide-react";
 import logo from "@/assets/landing/logo.svg";
 import { getStats } from "@/lib/contract";
 import { formatInt } from "@/lib/format";
@@ -17,6 +17,7 @@ import { WalletButton } from "../wallet/wallet-button";
 const links: { href: string; label: string; icon: LucideIcon }[] = [
   { href: routes.live, label: "Live", icon: Radio },
   { href: routes.keepers, label: "Keepers", icon: Users },
+  { href: routes.proof, label: "Proof", icon: ShieldCheck },
   { href: routes.newJob, label: "New job", icon: Plus },
 ];
 

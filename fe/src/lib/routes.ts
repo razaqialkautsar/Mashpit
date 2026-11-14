@@ -5,6 +5,7 @@ export const routes = {
   job: "/job",
   newJob: "/new",
   keepers: "/keepers",
+  proof: "/proof",
 } as const;
 
 // Static export: job ids travel in the query string, not the path (FRONTEND_SPEC §3.1).
