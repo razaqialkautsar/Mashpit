@@ -13,7 +13,9 @@ When a call has nothing to do or fails, nobody is paid.
 [proof page](https://mashpit-near.vercel.app/proof) · contract
 [`contract.mashpit.testnet`](https://testnet.nearblocks.io/address/contract.mashpit.testnet)
 
-Built for NEAR Hackathon 2026, AI Swarms track. **Testnet only, not audited.**
+Built for NEAR Hackathon 2026, tracks **AI Swarms** (agents competing in a sealed-bid market) and
+**Open Innovation** (a pay-on-proof primitive for scheduled execution that any NEAR contract can
+use). **Testnet only, not audited.**
 
 ## Verify in 5 minutes
 
