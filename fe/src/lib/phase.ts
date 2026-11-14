@@ -72,7 +72,18 @@ export function phaseClock(job: JobView, config?: Config): PhaseClock {
         );
       break;
     case "Open":
-      return { progress: 1, label: "Due now. Any registered keeper can execute for the max reward.", short: "Due now", hint: "any keeper, pays max" };
+      // The contract also reports Open for a round with no winner that is not due yet
+      // (e.g. an every-epoch job after a round nobody bid in), so "Due now" needs is_due.
+      if (job.is_due)
+        return { progress: 1, label: "Due now. Any registered keeper can execute for the max reward.", short: "Due now", hint: "any keeper, pays max" };
+      if (job.due_block != null && job.schedule !== "EveryEpoch")
+        return span(r.reveal_end, job.due_block, "blocks until it is due. No winner this round: any keeper can run it then for the max reward.", (b) => `${secs(b)} to due`);
+      return {
+        progress: 0,
+        label: "No winner this round. When the next epoch starts, any keeper can run it for the max reward.",
+        short: "Next epoch",
+        hint: "open, not due yet",
+      };
     case "InFlight":
       return { progress: 1, label: "A keeper's call is in flight. The callback settles payment.", short: "Running", hint: "waiting for callback" };
     case "Paused":
