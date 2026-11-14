@@ -57,7 +57,9 @@ fn default_config(owner_id: AccountId, treasury_id: AccountId) -> Config {
         max_memo_bytes: 280,
         callback_gas_tgas: 20,
         overhead_gas_tgas: 15,
-        max_total_gas_tgas: 300,
+        // Testnet protocol 88 allows 1,000 Tgas of prepaid gas (EXPERIMENTAL_protocol_config,
+        // 14 Nov 2026). 400 leaves room for LiNEAR's epoch_stake, which needs 275 Tgas.
+        max_total_gas_tgas: 400,
     }
 }
 
@@ -298,14 +300,12 @@ impl Mashpit {
 
     /// Release the winner's stake lock without penalty. Never panics.
     pub(crate) fn release_winner_lock(&mut self, job: &mut Job) {
-        if let Some(w) = job.round.winner.as_mut() {
-            if !w.settled {
-                if let Some(mut k) = self.keepers.get(&w.keeper).cloned() {
-                    k.locked = U128(k.locked.0.saturating_sub(w.locked.0));
-                    self.save_keeper(&w.keeper, k);
-                }
-                w.settled = true;
+        if let Some(w) = job.round.winner.as_mut().filter(|w| !w.settled) {
+            if let Some(mut k) = self.keepers.get(&w.keeper).cloned() {
+                k.locked = U128(k.locked.0.saturating_sub(w.locked.0));
+                self.save_keeper(&w.keeper, k);
             }
+            w.settled = true;
         }
     }
 

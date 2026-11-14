@@ -80,6 +80,7 @@ fn defaults_match_spec() {
     assert_eq!(cfg.min_keeper_stake.0, NEAR);
     assert_eq!(cfg.min_commit_bond.0, NEAR / 10);
     assert_eq!((cfg.commit_blocks, cfg.reveal_blocks, cfg.grace_blocks), (100, 100, 150));
+    assert_eq!(cfg.max_total_gas_tgas, 400);
 }
 
 #[test]
@@ -105,7 +106,7 @@ fn register_job_charges_storage() {
 fn register_job_rejects_too_much_gas() {
     let mut c = setup();
     let mut input = job_input(NEAR / 10);
-    input.gas_tgas = 280;
+    input.gas_tgas = 380; // 380 + 20 callback + 15 overhead > 400
     ctx("owner.testnet", 100, 2 * NEAR);
     c.register_job(input);
 }
@@ -299,4 +300,63 @@ fn callback_outcome_rules() {
     assert_eq!(outcome_for(&Ok(vec![]), &rt), Outcome::ReturnedFalse);
     assert_eq!(outcome_for(&Err(PromiseError::TooLong(5000)), &rt), Outcome::ReturnedFalse);
     assert_eq!(outcome_for(&Err(PromiseError::Failed), &rt), Outcome::Failed);
+}
+
+/// Run the callback of an execution as the contract itself, with the target's result.
+fn callback(c: &mut Mashpit, job: JobId, round: u64, block: u64, result: near_sdk::PromiseResult) -> Outcome {
+    let mut b = VMContextBuilder::new();
+    b.current_account_id(acc("mashpit.testnet"))
+        .predecessor_account_id(acc("mashpit.testnet"))
+        .block_height(block)
+        .epoch_height(10)
+        .account_balance(NearToken::from_near(100));
+    testing_env!(
+        b.build(),
+        near_sdk::test_vm_config(),
+        near_sdk::RuntimeFeesConfig::test(),
+        Default::default(),
+        vec![result],
+    );
+    c.on_executed(job, round)
+}
+
+#[test]
+fn winner_whose_target_fails_is_released_not_slashed() {
+    let mut c = setup();
+    let id = awarded_job(&mut c); // k1 wins with a bid of 50 yocto
+    ctx("k1.testnet", 210, 0);
+    let _ = c.execute(id);
+    assert_eq!(callback(&mut c, id, 0, 211, near_sdk::PromiseResult::Failed), Outcome::Failed);
+
+    let k1 = c.get_keeper(acc("k1.testnet")).unwrap();
+    assert_eq!(k1.locked.0, 0, "winner lock released");
+    assert_eq!(k1.stake.0, 5 * NEAR, "no slash");
+    let job = c.get_job(id).unwrap();
+    assert!(job.round.open_mode, "round opens to every keeper");
+    assert!(job.is_due, "the job stays due");
+    assert_eq!(job.phase, Phase::Open);
+
+    // Long after the window, there is nothing left to slash.
+    ctx("anyone.testnet", 1_000, 0);
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| c.slash_missed(id)));
+    assert!(res.is_err(), "slash_missed must refuse");
+    assert_eq!(c.get_keeper(acc("k1.testnet")).unwrap().slashed, 0);
+}
+
+#[test]
+fn successful_run_pays_the_bid_minus_fee() {
+    let mut c = setup();
+    let id = awarded_job(&mut c);
+    ctx("k1.testnet", 210, 0);
+    let _ = c.execute(id);
+    let before = c.get_job(id).unwrap().balance.0;
+    assert_eq!(callback(&mut c, id, 0, 211, near_sdk::PromiseResult::Successful(vec![])), Outcome::Paid);
+
+    let k1 = c.get_keeper(acc("k1.testnet")).unwrap();
+    assert_eq!(k1.rewards.0, 50 - 50 * 500 / 10_000); // bid 50 yocto, 5% fee
+    assert_eq!(k1.locked.0, 0);
+    assert_eq!(c.get_job(id).unwrap().balance.0, before - 50);
+    let h = c.get_history(id);
+    assert_eq!((h.last().unwrap().outcome.clone(), h.last().unwrap().paid.0), (Outcome::Paid, 50));
+    assert_eq!(c.get_job(id).unwrap().round.round_id, 1, "a new round opens");
 }
