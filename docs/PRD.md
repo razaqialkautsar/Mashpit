@@ -195,7 +195,7 @@ Detail method, struktur data, dan error ada di [SMART_CONTRACT_SPEC.md](SMART_CO
 | NFR-1 | Total gas per transaksi `execute` (gas target + callback + overhead) ≤ 300 Tgas | Docs NEAR berbeda soal batas prepaid gas (300 Tgas di halaman environment, 1.000 Tgas di halaman gas); 300 Tgas dipilih sebagai batas aman |
 | NFR-2 | Storage yang dibuat oleh pengguna dibayar oleh pengguna (deposit ≥ pertambahan storage × 1E19 yoctoNEAR/byte) | [Docs storage staking](https://docs.near.org/protocol/storage/storage-staking) |
 | NFR-3 | Data yang tumbuh tak terbatas dibatasi (riwayat per job maks N entri; memo maks M byte) | Turunan NFR-2 |
-| NFR-4 | Tidak ada private key atau API key di repo atau riwayat git | HACKATHON.md (aturan secrets); checklist [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) di repo prompt contoh |
+| NFR-4 | Tidak ada private key atau API key di repo atau riwayat git | [HACKATHON.md](../HACKATHON.md) (aturan secrets); checklist [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) di repo prompt contoh |
 | NFR-5 | Dashboard memperbarui data dalam ≤ 5 detik (polling RPC) | Waktu blok terukur ~0,58 detik; usulan |
 | NFR-6 | Dashboard bisa diakses tanpa login dan berjalan sebagai situs statis | Q-009 (RPC publik gratis); Q-012 (hosted demo nilai plus) |
 | NFR-7 | Keeper referensi berjalan sebagai 3 service terpisah di Railway (Serverless OFF) dan tetap hidup sampai 18 Nov (ideal 25 Nov) | Q-012; desain failover; Railway: service "always running" kecuali Serverless diaktifkan ([docs](https://docs.railway.com/deployments/serverless)) |
@@ -382,7 +382,7 @@ Mashpit/
 │   ├── PRD.md
 │   ├── SMART_CONTRACT_SPEC.md
 │   ├── FRONTEND_SPEC.md
-│   └── RULES.md                    # aturan lelang ringkas (saran prompt contoh Swarms)
+│   └── RULES.md                    # aturan lelang + diagram urutan satu putaran (diminta prompt contoh Swarms; belum ditulis)
 ├── contracts/
 │   └── mashpit/
 │       ├── Cargo.toml
@@ -409,9 +409,9 @@ Mashpit/
 │       ├── ai.ts                   # panggil NEAR AI Cloud, parse keputusan
 │       ├── fallback.ts             # aturan cadangan deterministik
 │       └── config.ts
-├── web/
+├── fe/                             # Next.js (D4)
 │   ├── package.json
-│   ├── .env.example                # VITE_CONTRACT_ID, VITE_NETWORK, VITE_RPC_URL
+│   ├── .env.example                # NEXT_PUBLIC_CONTRACT_ID, NEXT_PUBLIC_NETWORK, NEXT_PUBLIC_RPC_URL
 │   └── src/                        # detail di FRONTEND_SPEC.md §6
 └── scripts/
     ├── deploy.sh                   # build + deploy + init kontrak
@@ -452,7 +452,7 @@ Mashpit/
 | D1 | Siapa membangun keeper agent (TypeScript + NEAR AI)? | **Diputuskan 13 Nov: Razaqi** |
 | D2 | Setuju dengan batas MVP §0.1? | — |
 | D3 | Persona utama untuk pitch | P1 (operator protokol liquid staking) |
-| D4 | Framework web | Vite + React + TypeScript (situs statis). Keputusan Bayu |
+| D4 | Framework web | **Diputuskan 14 Nov: Next.js + TypeScript + Tailwind CSS**, di-build sebagai situs statis (`output: "export"`), folder `fe/`. Keputusan Bayu |
 | D5 | Hosting dashboard dan mesin keeper | **Keeper: diputuskan 13 Nov, Railway** (Root Directory `keeper`, satu repo). Dashboard: belum dipilih |
 | D6 | Angka: fee protokol, `min_keeper_stake`, batas bawah jaminan commit, `stake_multiplier` | Default usulan di SMART_CONTRACT_SPEC §3 |
 | D7 | Model AI untuk keeper | Pilih dari `/v1/models` setelah latensi diukur; kandidat termurah: `z-ai/glm-5.3-flash`, `openai/gpt-6-luna` |
@@ -467,6 +467,6 @@ Mashpit/
 - GitHub Actions: [schedule event](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule), [disabling workflows](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-workflow-runs/disabling-and-enabling-a-workflow)
 - Liquid staking: [LiNEAR](https://github.com/linear-protocol/LiNEAR), [Meta Pool](https://github.com/Meta-Pool/liquid-staking-contract); staking pool: [near/core-contracts](https://github.com/near/core-contracts/tree/master/staking-pool)
 - Preseden: [Cron-Near/contracts](https://github.com/Cron-Near/contracts), [forum grant Cron.near](https://gov.near.org/t/cron-near-grantee-update-1-mar-27/1046)
-- Aturan hackathon: [../HACKATHON.md](../HACKATHON.md), [prompt contoh Swarms](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/tracks/05-swarms.md)
+- Aturan hackathon: [../HACKATHON.md](../HACKATHON.md), [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md), [setup prompt](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/00-setup.md), prompt contoh [Swarms](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/tracks/05-swarms.md) dan [Open](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/tracks/13-open.md)
 - NEAR docs: [cross-contract](https://docs.near.org/smart-contracts/anatomy/crosscontract), [storage staking](https://docs.near.org/protocol/storage/storage-staking), [gas](https://docs.near.org/protocol/transactions/gas), [random](https://docs.near.org/smart-contracts/security/random), [wallet login](https://docs.near.org/web3-apps/tutorials/wallet-login)
 - LiNEAR: [repo](https://github.com/linear-protocol/LiNEAR)

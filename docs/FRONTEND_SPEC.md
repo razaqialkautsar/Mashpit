@@ -39,19 +39,21 @@ Requirement terkait di PRD: FR-W1 s/d FR-W5, NFR-5, NFR-6, NFR-9.
 
 | Route | Prioritas | Isi | Data (view method kontrak) |
 | --- | --- | --- | --- |
-| `/` Live | P0 | Statistik ringkas (blok, epoch, jumlah job, keeper, total stake, fee); daftar job dengan fase putaran, hitung mundur, pemenang, hasil terakhir | `get_stats`, `list_jobs` |
-| `/jobs/:id` Detail job | P0 | Parameter job; panel putaran (timeline fase, tabel commit/reveal + memo AI, pemenang, jendela eksklusif); tabel riwayat eksekusi | `get_job`, `get_round`, `get_history` |
+| `/` Landing | P0 | Halaman depan: apa itu Mashpit, cara kerja, ajakan ke Live dan Buat job. Sudah dibangun (`fe/src/components/landing/`) | — |
+| `/live` Live | P0 | Statistik ringkas (blok, epoch, jumlah job, keeper, total stake, fee); daftar job dengan fase putaran, hitung mundur, pemenang, hasil terakhir | `get_stats`, `list_jobs` |
+| `/job?id=<n>` Detail job | P0 | Parameter job; panel putaran (timeline fase, tabel commit/reveal + memo AI, pemenang, jendela eksklusif); tabel riwayat eksekusi | `get_job`, `get_round`, `get_history` |
 | `/keepers` Keeper | P0 | Tabel keeper: stake, terkunci, reward, eksekusi, slash | `list_keepers` |
 | `/new` Buat job | P1 | Connect wallet; template job; form; ringkasan deposit dan gas | `get_config` + transaksi `register_job` |
-| Aksi pemilik di `/jobs/:id` | P1 | Tambah saldo, jeda/lanjutkan, tutup job (hanya muncul kalau akun yang login = pemilik job) | transaksi `top_up`, `pause_job`, `resume_job`, `close_job` |
+| Aksi pemilik di `/job?id=<n>` | P1 | Tambah saldo, jeda/lanjutkan, tutup job (hanya muncul kalau akun yang login = pemilik job) | transaksi `top_up`, `pause_job`, `resume_job`, `close_job` |
 
 ### 3.1 Aturan tampilan
 
-- **Fase putaran** diambil dari field `phase` di `get_job` (dihitung kontrak). Frontend tidak menghitung ulang aturan bisnis.
+- **Route.** Landing memakai `/`, jadi halaman Live pindah ke `/live`. Detail job memakai query `?id=` karena situs di-build sebagai file statis (`output: "export"`): Next.js hanya bisa merender route dinamis yang ID-nya sudah diketahui saat build, sedangkan ID job baru muncul di kontrak setelah deploy. Semua path diatur di `fe/src/lib/routes.ts`.
+- **Fase putaran** diambil dari field `phase` di `get_job` (dihitung kontrak). Frontend tidak menghitung ulang aturan bisnis. **Fakta** (RPC, 14 Nov): `get_job` dan `list_jobs` di `contract.mashpit.testnet` mengembalikan `phase`, `is_due`, `due_block`, `exclusive_until`, `current_block`, `current_epoch`.
 - **Hitung mundur** ditampilkan dalam blok, dengan perkiraan detik bertanda "≈", memakai 0,58 detik/blok (fakta pengukuran; bisa berubah).
 - **Jumlah NEAR** diterima sebagai string yoctoNEAR (U128), dikonversi dengan `BigInt` (1 NEAR = 10^24 yocto). Jangan memakai `Number` untuk nilai yocto.
 - **Memo AI** ditampilkan apa adanya sebagai teks biasa. Memo berasal dari keeper (data tidak tepercaya), jadi tidak boleh dirender sebagai HTML.
-- **Hasil eksekusi** diberi label: `Paid` (dibayar), `ReturnedFalse` (berhasil, tidak ada pekerjaan, tidak dibayar), `Failed` (gagal). Baris yang punya `slashed_keeper` ditandai sebagai failover.
+- **Hasil eksekusi** diberi label: `Paid` (dibayar), `ReturnedFalse` (berhasil, tidak ada pekerjaan, tidak dibayar), `Failed` (gagal). Baris yang punya `slashed_keeper` ditandai sebagai failover. **Fakta** (RPC, 14 Nov): kontrak juga menulis baris tersendiri dengan `outcome: "Slashed"` (`paid: "0"`, `executor` = `slashed_keeper` = keeper yang dihukum), disusul baris `Paid` untuk keeper yang mengambil alih di mode terbuka. Dashboard menampilkan `Slashed` sebagai label keempat dan mengelompokkan kedua baris dalam satu putaran sebagai satu kejadian failover. Belum tercantum di SMART_CONTRACT_SPEC §2 (ditanyakan ke Razaqi).
 - **Keterlambatan** = `exec_block − due_block` (kalau `due_block` ada).
 - **Link**: akun (keeper, target, pemilik) ke `https://testnet.nearblocks.io/address/<akun>`. Kontrak tidak menyimpan hash transaksi, jadi riwayat tidak menautkan ke transaksi individual.
 
@@ -131,7 +133,7 @@ Angka di wireframe adalah contoh tata letak, bukan data.
 
 | Modul | Tanggung jawab |
 | --- | --- |
-| `lib/near.ts` | View call: satu instance `JsonRpcProvider` (URL dari `VITE_RPC_URL`), fungsi `view(method, args)` yang membungkus `provider.callFunction({ contractId, method, args })` |
+| `lib/near.ts` | View call: satu instance `JsonRpcProvider` (URL dari `NEXT_PUBLIC_RPC_URL`), fungsi `view(method, args)` yang membungkus `provider.callFunction({ contractId, method, args })` |
 | `lib/wallet.ts` | Satu instance `NearConnector({ network: "testnet" })`; `signIn()` → `connect()` + `getAccounts()`; `call(methodName, args, gas, deposit)` → `wallet.signAndSendTransaction` dengan action `FunctionCall`. Skill `near-dapp` menyebut paket `near-connect-hooks` untuk React; pemakaiannya keputusan Bayu |
 | `lib/contract.ts` | Fungsi bertipe untuk setiap view dan change method di SMART_CONTRACT_SPEC §4 |
 | `lib/types.ts` | Tipe TypeScript yang mencerminkan `JobView`, `Round`, `ExecutionRecord`, `Keeper`, `Config` dari SMART_CONTRACT_SPEC §2 |
@@ -144,24 +146,23 @@ Angka di wireframe adalah contoh tata letak, bukan data.
 
 ---
 
-## 6. Struktur folder `web/` (rancangan)
+## 6. Struktur folder `fe/`
 
-Framework adalah keputusan Bayu (PRD D4). Usulan: Vite + React + TypeScript, karena hasilnya situs statis (NFR-6).
+Framework: **Next.js 16 (App Router) + TypeScript + Tailwind CSS v4**, di-build sebagai situs statis (`output: "export"`, NFR-6). Keputusan Bayu, 14 Nov (PRD D4). Next.js hanya mengirim variabel berawalan `NEXT_PUBLIC_` ke browser, jadi nama `VITE_*` di versi awal dokumen ini tidak berlaku.
 
 ```
-web/
+fe/
 ├── package.json
-├── .env.example            # VITE_NETWORK=testnet, VITE_CONTRACT_ID=, VITE_RPC_URL=https://rpc.testnet.near.org,
-│                           # VITE_EXPLORER_URL=https://testnet.nearblocks.io
-├── index.html
+├── next.config.ts          # output: "export"
+├── .env.example            # NEXT_PUBLIC_NETWORK=testnet, NEXT_PUBLIC_CONTRACT_ID=contract.mashpit.testnet,
+│                           # NEXT_PUBLIC_RPC_URL=https://rpc.testnet.near.org, NEXT_PUBLIC_EXPLORER_URL=https://testnet.nearblocks.io
 └── src/
-    ├── main.tsx
-    ├── App.tsx             # router
-    ├── pages/
-    │   ├── Live.tsx
-    │   ├── JobDetail.tsx
-    │   ├── Keepers.tsx
-    │   └── NewJob.tsx      # P1
+    ├── app/
+    │   ├── page.tsx        # landing (sudah ada)
+    │   ├── live/page.tsx
+    │   ├── job/page.tsx    # ?id=<n>
+    │   ├── keepers/page.tsx
+    │   └── new/page.tsx    # P1
     ├── components/
     │   ├── StatsBar.tsx
     │   ├── JobTable.tsx
@@ -188,7 +189,7 @@ web/
 | ID | Requirement |
 | --- | --- |
 | FE-NFR-1 | Build menghasilkan situs statis; bisa di-hosting tanpa server aplikasi |
-| FE-NFR-2 | Tidak ada secret di kode frontend; hanya variabel `VITE_*` publik |
+| FE-NFR-2 | Tidak ada secret di kode frontend; hanya variabel `NEXT_PUBLIC_*` publik |
 | FE-NFR-3 | Data diperbarui ≤ 5 detik (polling 3 detik) |
 | FE-NFR-4 | Tampilan bisa dipakai di desktop dan ponsel; tabel bisa digulir horizontal di layar kecil |
 | FE-NFR-5 | Teks dari kontrak (memo, nama method) dirender sebagai teks, bukan HTML |
@@ -222,6 +223,7 @@ web/
 
 ## 10. Pertanyaan terbuka (frontend)
 
-- [ ] Framework dan hosting (PRD D4, D5).
+- [x] Framework: Next.js (PRD D4, 14 Nov).
+- [ ] Hosting dashboard (PRD D5).
 - [ ] Pakai `near-connect-hooks` (disebut skill `near-dapp`) atau NEAR Connect langsung.
 - [ ] Apakah halaman Live perlu menampilkan perbandingan dengan GitHub Actions (bahan pitch) atau cukup di README.
