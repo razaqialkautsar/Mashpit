@@ -77,6 +77,11 @@ const initial: Form = {
   deposit: "1.00",
 };
 
+// Testnet: 43,200 blocks per epoch (protocol config) at ~0.58 s per block, so about 7 h.
+const EPOCH_BLOCKS = 43_200;
+const BLOCK_SECONDS = 0.58;
+const minutes = (blocks: number) => Math.round((blocks * BLOCK_SECONDS) / 60);
+
 const REGISTER_GAS = "100000000000000"; // 100 Tgas
 const ACCOUNT_RE = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
 // Rough on-chain size of a job record before its args, method and target.
@@ -199,7 +204,7 @@ export function NewJobForm() {
       >
         <Panel>
           <div className="divide-y divide-line">
-            <Row title="Your contract" text="The method Mashpit calls for you on a schedule. Mashpit attaches no deposit.">
+            <Row step={1} title="Your contract" text="The method Mashpit calls for you on a schedule. Mashpit attaches no deposit.">
               <div className="grid gap-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Contract account" error={issues.target}>
@@ -245,7 +250,7 @@ export function NewJobForm() {
               </div>
             </Row>
 
-            <Row title="Is it keeper-ready?" text="Check your method before you post. A call that always fails never pays anyone.">
+            <Row step={2} title="Is it keeper-ready?" text="Check your method before you post. A call that always fails never pays anyone.">
               <ul className="grid gap-3 text-sm text-ink-2">
                 {[
                   <>
@@ -271,7 +276,7 @@ export function NewJobForm() {
               </ul>
             </Row>
 
-            <Row title="Gas" text={gasHint}>
+            <Row step={3} title="Gas" text={gasHint}>
               <div className="grid items-end gap-4 sm:grid-cols-[180px_minmax(0,1fr)]">
                 <Field label="Gas for the call" error={issues.gas} suffix="Tgas">
                   <input className={`${input} pr-16`} inputMode="numeric" value={f.gas} aria-invalid={!!issues.gas} onChange={(e) => set("gas", e.target.value)} />
@@ -294,8 +299,9 @@ export function NewJobForm() {
             </Row>
 
             <Row
-              title="Schedule & rule"
-              text={`Every-N-blocks needs at least ${minInterval || "—"} blocks so the auction can finish.`}
+              step={4}
+              title="When it runs, and when it pays"
+              text={`An auction runs before every execution, so every-N-blocks needs at least ${minInterval || "—"} blocks (≈ ${minutes(minInterval)} min).`}
             >
               <div className="grid gap-4 xl:grid-cols-2">
                 <Field label="Schedule" as="div" error={issues.interval}>
@@ -305,10 +311,16 @@ export function NewJobForm() {
                     onChange={(v) => set("scheduleKind", v as Form["scheduleKind"])}
                     options={[["epoch", "Every epoch"], ["blocks", "Every N blocks"]]}
                   />
+                  {f.scheduleKind === "epoch" && (
+                    <span className="mt-2.5 block text-[13px] text-ink-3">
+                      About every {Math.round((EPOCH_BLOCKS * BLOCK_SECONDS) / 3600)} h on testnet, paid at most once per epoch.
+                      Good for staking and reward bookkeeping.
+                    </span>
+                  )}
                   {f.scheduleKind === "blocks" && (
                     <span className="mt-2.5 flex items-center gap-2">
                       <input aria-label="Interval in blocks" className={`${input} w-32`} inputMode="numeric" value={f.interval} aria-invalid={!!issues.interval} onChange={(e) => set("interval", e.target.value)} />
-                      <span className="text-sm text-ink-3">blocks ≈ {Math.round((Number(f.interval) || 0) * 0.58 / 60)} min</span>
+                      <span className="text-sm text-ink-3">blocks ≈ {minutes(Number(f.interval) || 0)} min</span>
                     </span>
                   )}
                 </Field>
@@ -319,13 +331,19 @@ export function NewJobForm() {
                     onChange={(v) => set("rule", v as SuccessRule)}
                     options={[["Any", "Call succeeds"], ["ReturnsTrue", "Returns true"]]}
                   />
+                  <span className="mt-2.5 block text-[13px] text-ink-3">
+                    {f.rule === "Any"
+                      ? "Pays when the call does not fail. Use it for methods that return nothing."
+                      : "Pays only when the method returns true. Use it when false means there was nothing to do."}
+                  </span>
                 </Field>
               </div>
             </Row>
 
             <Row
+              step={5}
               title="Money"
-              text={`Keepers bid at or below max reward. Fee is ${config ? config.protocol_fee_bps / 100 : "—"}% of what is paid.`}
+              text={`Max reward is your ceiling per run: keepers bid at or below it and the lowest bid wins. Fee is ${config ? config.protocol_fee_bps / 100 : "—"}% of what is paid. Close the job any time to get the balance back.`}
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Max reward per run" error={issues.maxReward} suffix="NEAR">
@@ -413,11 +431,16 @@ const input =
   "w-full rounded-xl border border-line-strong bg-bg px-3.5 py-3 font-mono text-[15px] text-ink outline-none transition-colors placeholder:text-ink-3/60 focus:border-ink-3 aria-[invalid=true]:border-bad";
 
 /** One form section: title and helper text on the left, fields on the right. */
-function Row({ title, text, children }: { title: string; text: string; children: ReactNode }) {
+function Row({ step, title, text, children }: { step?: number; title: string; text: string; children: ReactNode }) {
   return (
     <div className="grid gap-4 px-5 py-6 sm:px-7 md:grid-cols-[200px_minmax(0,1fr)] md:gap-8">
       <div>
-        <h2 className="font-sans text-base font-bold tracking-normal">{title}</h2>
+        <h2 className="flex items-center gap-2.5 font-sans text-base font-bold tracking-normal">
+          {step != null && (
+            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-3 text-xs font-bold text-ink">{step}</span>
+          )}
+          {title}
+        </h2>
         <p className="mt-1.5 text-[13px] text-ink-3">{text}</p>
       </div>
       <div className="min-w-0">{children}</div>
