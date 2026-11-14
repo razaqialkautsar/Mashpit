@@ -47,9 +47,11 @@ fn default_config(owner_id: AccountId, treasury_id: AccountId) -> Config {
         min_keeper_stake: U128(ONE_NEAR),
         stake_multiplier: 10,
         min_commit_bond: U128(ONE_NEAR / 10),
-        commit_blocks: 50,
-        reveal_blocks: 50,
-        grace_blocks: 50,
+        // ~58 s / ~58 s / ~87 s at the measured ~0.58 s testnet block time. 50-block windows
+        // were too short in testnet runs when public RPCs rate-limited the keepers.
+        commit_blocks: 100,
+        reveal_blocks: 100,
+        grace_blocks: 150,
         max_commits_per_round: 10,
         max_history: 20,
         max_memo_bytes: 280,
