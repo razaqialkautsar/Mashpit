@@ -55,7 +55,9 @@ To run several keepers on one machine, give each its own env file (`.env.k1`, `.
 | `KEEPER_SECRET` | yes | | ≥ 16 characters. Salts are derived from it, so keep it the same across restarts and redeploys |
 | `KEEPER_STRATEGY` | | `balanced` | `aggressive`, `balanced` or `conservative` |
 | `KEEPER_DRAIN` | | `false` | Finish pending reveals and executions but never bid in a new round |
+| `KEEPER_DRAIN_JOBS` | | empty | Job ids to stop bidding on; what is already committed still gets revealed and executed |
 | `KEEPER_SKIP_EXECUTE` | | `false` | Demo switch: keep bidding but never execute, so the contract slashes this keeper |
+| `LOW_BALANCE_NEAR` / `CRITICAL_BALANCE_NEAR` / `MIN_WITHDRAW_NEAR` | | `0.1` / `0.03` / `0.01` | Below LOW the keeper withdraws its rewards; below CRITICAL with nothing to withdraw it stops bidding |
 | `CONTRACT_ID` | | `contract.mashpit.testnet` | |
 | `RPC_URLS` | | FastNEAR testnet, then `rpc.testnet.near.org` | Comma-separated, tried in order |
 | `POLL_MS` / `IDLE_POLL_MS` | | `3000` / `20000` | Poll interval when an action is near / when every job is idle |
@@ -101,6 +103,15 @@ previous winning bid 33%; cost = tokens used × the price listed at `/v1/models`
 
 Reasoning models can spend their whole token budget before answering. The keeper therefore sends
 no `temperature` (some models accept only their default) and allows up to 800 tokens.
+
+**Failing targets.** A failed call pays nobody and leaves the job due, so the keeper backs off
+after each failure in a round (50, then 100 blocks) and gives the round up after 3 failures. It
+stops bidding on a job whose target failed in 3 of its last 5 runs, and the AI sees the failure
+count too.
+
+**Gas money.** Every few minutes the keeper checks its balance. When it runs low it calls
+`withdraw_rewards`; when it is critically low with nothing to withdraw, it stops committing new
+bids, because a commit that cannot be revealed loses its bond.
 
 **Restart safety without stored state.** The salt is
 `HMAC-SHA256(KEEPER_SECRET, "{contract}:{job_id}:{round_id}")`. Bids are restricted to a 1% grid
