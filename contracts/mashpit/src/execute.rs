@@ -182,8 +182,21 @@ impl Mashpit {
             }
             self.release_winner_lock(&mut job);
             job.round = self.new_round(round_id + 1);
+        } else {
+            // On failure the round stays, so the job remains due and can be retried. If the
+            // winner made the call, it did its job and the target failed: release its lock
+            // without a slash and open the round to every keeper.
+            let winner_failed = job
+                .round
+                .winner
+                .as_ref()
+                .map(|w| !w.settled && w.keeper == flight.executor)
+                .unwrap_or(false);
+            if winner_failed {
+                self.release_winner_lock(&mut job);
+                job.round.open_mode = true;
+            }
         }
-        // On failure the round stays as it is, so the job remains due and can be retried.
 
         MashpitEvent::JobExecuted {
             job_id,
