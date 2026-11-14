@@ -220,7 +220,7 @@ gets back `max_reward` minus the fee, so being late never pays better than execu
 | `max_commits_per_round` | 10 |
 | `max_history` | 20 |
 | `max_memo_bytes` | 280 |
-| `callback_gas_tgas` / `overhead_gas_tgas` / `max_total_gas_tgas` | 20 / 15 / 300 |
+| `callback_gas_tgas` / `overhead_gas_tgas` / `max_total_gas_tgas` | 20 / 15 / 400 (testnet allows 1,000 Tgas of prepaid gas; LiNEAR `epoch_stake` needs 275) |
 
 ## Events
 

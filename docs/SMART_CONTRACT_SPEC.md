@@ -23,7 +23,7 @@ Seluruh isi dokumen ini adalah **rancangan** kecuali yang ditandai **Fakta**. Na
 | `env::epoch_height()` dan `env::block_height()` tersedia | [docs.rs](https://docs.rs/near-sdk/latest/near_sdk/env/fn.epoch_height.html) | Jadwal `EveryEpoch` dan `EveryBlocks` |
 | `random_seed` bisa diakali validator | [docs random](https://docs.near.org/smart-contracts/security/random) | Pemenang ditentukan tanpa angka acak |
 | Storage: 1E19 yoctoNEAR per byte; pemilik kontrak harus mengunci saldo untuk storage | [docs storage staking](https://docs.near.org/protocol/storage/storage-staking) | Deposit pengguna menanggung storage yang dibuatnya |
-| Batas prepaid gas: 300 Tgas (halaman environment) vs 1.000 Tgas (halaman gas) | [environment](https://docs.near.org/smart-contracts/anatomy/environment), [gas](https://docs.near.org/protocol/transactions/gas) | Batas aman: total gas `execute` ≤ 300 Tgas |
+| Batas prepaid gas: dokumen menyebut 300 Tgas (halaman environment) dan 1.000 Tgas (halaman gas). **Diverifikasi 14 Nov:** `EXPERIMENTAL_protocol_config` testnet (protocol 88) memberi `max_total_prepaid_gas` = 1.000 Tgas | [environment](https://docs.near.org/smart-contracts/anatomy/environment), [gas](https://docs.near.org/protocol/transactions/gas), RPC testnet | Batas total gas `execute` = 400 Tgas (muat `epoch_stake` LiNEAR yang butuh 275 Tgas) |
 | LiNEAR `epoch_update_rewards(validator_id)` mensyaratkan prepaid gas ≥ 75 + 25 + 25 = 125 Tgas | [epoch_actions.rs](https://github.com/linear-protocol/LiNEAR/blob/main/contracts/linear/src/epoch_actions.rs), [types.rs](https://github.com/linear-protocol/LiNEAR/blob/main/contracts/linear/src/types.rs) | Gas job demo ≥ 125 Tgas |
 | LiNEAR `epoch_stake` mengembalikan `bool` (`false` = "There is no need to call this function again in this epoch") | epoch_actions.rs | Aturan sukses `ReturnsTrue` |
 | Staking pool `ping` tidak mengembalikan nilai; berhenti tanpa efek kalau epoch belum berganti | [core-contracts](https://github.com/near/core-contracts/tree/master/staking-pool) | Job `EveryEpoch` dibayar maks sekali per epoch |
@@ -66,7 +66,7 @@ pub struct Config {
     pub max_memo_bytes: u16,         // usulan 280
     pub callback_gas_tgas: u64,      // usulan 20 (diukur saat integration test)
     pub overhead_gas_tgas: u64,      // usulan 15 (diukur saat integration test)
-    pub max_total_gas_tgas: u64,     // 300 (NFR-1)
+    pub max_total_gas_tgas: u64,     // 400 (NFR-1; protokol testnet mengizinkan 1.000)
 }
 
 pub struct Keeper {
@@ -168,7 +168,7 @@ Koleksi `LookupMap`, `IterableMap`, dan `IterableSet` berasal dari `near_sdk::st
 | `min_commit_bond` | 0.1 NEAR | Batas bawah supaya commit palsu tidak murah |
 | `commit_blocks` / `reveal_blocks` / `grace_blocks` | 100 / 100 / 150 | ~58 / ~58 / ~87 detik pada waktu blok terukur ~0,58 detik. Awalnya 50 / 50 / 50, tapi di uji testnet 13 Nov jendela ~29 detik terlalu sempit: saat RPC publik membatasi request (HTTP 429), keeper jujur sempat gagal reveal dan gagal eksekusi tepat waktu. Kontrak testnet diubah lewat `set_config` pada 13 Nov (tx `DmZ2rnAaTSLNHHQN4A87sfVDg5ueQ1pXA1JpcWyVCAiA`), lalu default di kode disamakan. Putaran yang sudah dibuka sebelum perubahan tetap memakai 50 / 50 |
 | `callback_gas_tgas` / `overhead_gas_tgas` | 20 / 15 | Diukur dan disesuaikan di integration test |
-| `max_total_gas_tgas` | 300 | NFR-1 |
+| `max_total_gas_tgas` | 400 | NFR-1. Awalnya 300, karena dokumen NEAR saling bertentangan. Protokol testnet 88 mengizinkan 1.000 Tgas (diverifikasi lewat RPC, 14 Nov), dan `epoch_stake` LiNEAR butuh 275 Tgas. Kontrak testnet diubah lewat `set_config` (tx `2sVV7GKf2ZwAYAFp5veDSDZLdH9e4LnVxpBMULszKvQR`) |
 
 ---
 

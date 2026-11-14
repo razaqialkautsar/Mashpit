@@ -192,7 +192,7 @@ Detail method, struktur data, dan error ada di [SMART_CONTRACT_SPEC.md](SMART_CO
 
 | ID | Requirement | Dasar |
 | --- | --- | --- |
-| NFR-1 | Total gas per transaksi `execute` (gas target + callback + overhead) ≤ 300 Tgas | Docs NEAR berbeda soal batas prepaid gas (300 Tgas di halaman environment, 1.000 Tgas di halaman gas); 300 Tgas dipilih sebagai batas aman |
+| NFR-1 | Total gas per transaksi `execute` (gas target + callback + overhead) ≤ 400 Tgas | Docs NEAR berbeda soal batas prepaid gas (300 vs 1.000 Tgas). Diverifikasi 14 Nov: protokol testnet 88 mengizinkan 1.000 Tgas. Batas dinaikkan dari 300 ke 400 supaya `epoch_stake` LiNEAR (butuh 275 Tgas) muat |
 | NFR-2 | Storage yang dibuat oleh pengguna dibayar oleh pengguna (deposit ≥ pertambahan storage × 1E19 yoctoNEAR/byte) | [Docs storage staking](https://docs.near.org/protocol/storage/storage-staking) |
 | NFR-3 | Data yang tumbuh tak terbatas dibatasi (riwayat per job maks N entri; memo maks M byte) | Turunan NFR-2 |
 | NFR-4 | Tidak ada private key atau API key di repo atau riwayat git | [HACKATHON.md](../HACKATHON.md) (aturan secrets); checklist [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) di repo prompt contoh |
@@ -308,7 +308,7 @@ Semua metrik dibaca dari view method kontrak (tanpa backend analitik):
 | A3 | Menjalankan fungsi publik di kontrak testnet pihak lain untuk demo bisa diterima | Asumsi; dipertimbangkan tim |
 | A4 | Latensi model AI cukup kecil untuk fase commit 100 blok (~58 detik) | Sebagian terukur (14 Nov, satu panggilan per model lewat kode keeper): `deepseek/deepseek-v3.2` menjawab valid dalam 9,4 detik; `deepseek-ai/DeepSeek-V4.1-Flash-1017` timeout di 20 detik. Fase commit dinaikkan dari 50 ke 100 blok pada 13 Nov |
 | A5 | Tim punya akses NEAR AI Cloud (kredit $10 via NEAR Builders, Q-000) | Asumsi |
-| A6 | Batas gas aman 300 Tgas cukup: `epoch_update_rewards` butuh ≥ 125 Tgas (75 + 25 + 25, dari konstanta LiNEAR) | Fakta (konstanta); total dengan overhead belum diukur |
+| A6 | Batas gas cukup untuk job LiNEAR: `epoch_update_rewards` butuh ≥ 125 Tgas, `epoch_stake` ≥ 275 Tgas (konstanta LiNEAR) | Fakta. Batas 300 tidak cukup untuk `epoch_stake`, jadi dinaikkan ke 400 (NFR-1). Eksekusi nyata `epoch_update_rewards` membakar 14,5 Tgas (13 Nov) |
 | A7 | Testnet NEAR gratis lewat faucet (Q-008) | Fakta |
 
 ### 7.2 Risiko & mitigasi
