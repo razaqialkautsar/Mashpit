@@ -59,7 +59,7 @@ To run several keepers on one machine, give each its own env file (`.env.k1`, `.
 | `KEEPER_SKIP_EXECUTE` | | `false` | Demo switch: keep bidding but never execute, so the contract slashes this keeper |
 | `LOW_BALANCE_NEAR` / `CRITICAL_BALANCE_NEAR` / `MIN_WITHDRAW_NEAR` | | `0.1` / `0.03` / `0.01` | Below LOW the keeper withdraws its rewards; below CRITICAL with nothing to withdraw it stops bidding |
 | `CONTRACT_ID` | | `contract.mashpit.testnet` | |
-| `RPC_URLS` | | FastNEAR testnet, then `rpc.testnet.near.org` | Comma-separated, tried in order |
+| `RPC_URLS` | | FastNEAR, dRPC, Intear, ZAN (testnet) | Comma-separated, tried in order; a failing or rate-limited endpoint moves the keeper to the next |
 | `POLL_MS` / `IDLE_POLL_MS` | | `3000` / `20000` | Poll interval when an action is near / when every job is idle |
 | `NEAR_AI_API_KEY`, `NEAR_AI_MODEL` | | empty | Both set: bids come from the model. Otherwise the deterministic rule is used |
 | `NEAR_AI_BASE_URL` | | `https://cloud-api.near.ai/v1` | OpenAI-compatible endpoint |

@@ -65,7 +65,12 @@ export function loadConfig(): Config {
 
   return {
     network: optional("NEAR_NETWORK", "testnet"),
-    rpcUrls: optional("RPC_URLS", "https://test.rpc.fastnear.com,https://rpc.testnet.near.org")
+    // Public testnet RPCs from docs.near.org/api/rpc/providers, each checked with a view call on
+    // 14 Nov 2026. rpc.testnet.near.org is left out: it answers HTTP 429 with a deprecation notice.
+    rpcUrls: optional(
+      "RPC_URLS",
+      "https://test.rpc.fastnear.com,https://near-testnet.drpc.org,https://testnet-rpc.intea.rs,https://api.zan.top/near-testnet",
+    )
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
