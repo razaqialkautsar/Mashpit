@@ -271,6 +271,7 @@ Wireframe kasar per halaman ada di [FRONTEND_SPEC.md §4](FRONTEND_SPEC.md#4-wir
 
 ### 6.2 Release criteria (submisi hackathon)
 
+Dari [HACKATHON.md](../HACKATHON.md) dan [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) (checklist resmi dari repo [near-hackathon-prompt-examples](https://github.com/nearai/near-hackathon-prompt-examples)):
 Dari [HACKATHON.md](../HACKATHON.md) (aturan resmi) dan checklist [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) di repo prompt contoh `nearai/near-hackathon-prompt-examples`. Repo prompt contoh itu disebut HACKATHON.md sebagai "a starting point, not a requirement"; isi checklist-nya sejalan dengan aturan resmi:
 
 - [ ] Repo publik sebelum 2026-11-14T23:59:00Z, dengan LICENSE.
