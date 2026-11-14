@@ -1,7 +1,10 @@
+import Link from "next/link";
+import { Heading, Reveal } from "./motion";
+import { routes } from "@/lib/routes";
 import { Brand } from "./brand";
 import { RoundDemo } from "./round-demo";
 
-const h2 = "text-[clamp(2rem,4.2vw,3.25rem)]";
+const h2 = "text-[clamp(1.875rem,4.2vw,3.25rem)]";
 const lede = "max-w-[56ch] text-[clamp(1rem,1.3vw,1.125rem)] text-ink-2";
 
 const facts = [
@@ -28,36 +31,39 @@ export function Problem() {
   return (
     <section id="problem" className="section-y">
       <div className="wrap grid gap-[clamp(32px,6vw,96px)] md:grid-cols-[0.9fr_1.1fr]">
-        <div data-reveal>
-          <h2 className={h2}>Contracts can’t call themselves.</h2>
-          <p className={`${lede} mt-5`}>
-            Anything that must run every epoch depends on somebody’s bot. Usually one account, on
-            one server, with nobody to take over when it stops.
-          </p>
+        <div>
+          <Heading text="Contracts can’t call themselves." className={h2} />
+          <Reveal delay={0.15} distance={20}>
+            <p className={`${lede} mt-5`}>
+              Anything that must run every epoch depends on somebody’s bot. Usually one account, on
+              one server, with nobody to take over when it stops.
+            </p>
+          </Reveal>
         </div>
-        <ul data-reveal>
+        <Reveal role="list" stagger={0.12}>
           {facts.map((f) => (
-            <li
+            <div
+              role="listitem"
               key={f.figure}
               className="grid items-baseline gap-x-6 gap-y-1.5 border-t border-line py-[22px] last:border-b sm:grid-cols-[11rem_1fr]"
             >
               <b className="font-display text-[clamp(1.6rem,2.8vw,2.25rem)] leading-none font-semibold tracking-[-0.02em] text-glow">
                 {f.figure}
               </b>
-              <p className="text-[15px] text-ink-2">
+              <p className="text-base text-ink-2 sm:text-[15px]">
                 {f.text}{" "}
                 {f.source && (
                   <a
                     href={f.source.href}
-                    className="text-[13px] whitespace-nowrap text-ink-3 underline underline-offset-[3px] hover:text-ink"
+                    className="text-sm sm:text-[13px] whitespace-nowrap text-ink-3 underline underline-offset-[3px] hover:text-ink"
                   >
                     {f.source.label}
                   </a>
                 )}
               </p>
-            </li>
+            </div>
           ))}
-        </ul>
+        </Reveal>
       </div>
     </section>
   );
@@ -75,9 +81,7 @@ export function HowItWorks() {
     <section id="how" className="section-y border-y border-line bg-surface">
       <div className="wrap grid items-start gap-[clamp(32px,6vw,88px)] lg:grid-cols-[0.85fr_1.15fr]">
         <div>
-          <h2 className={h2} data-reveal>
-            One round, four moves.
-          </h2>
+          <Heading text="One round, four moves." className={h2} />
           {/* The numbers stay: this is a sequence, and the order is the content. */}
           <ol className="relative mt-[clamp(28px,4vw,48px)] grid gap-8 border-l-2 border-line-strong pl-7">
             <span
@@ -86,19 +90,21 @@ export function HowItWorks() {
               className="absolute top-0 -left-0.5 h-full w-0.5 origin-top bg-linear-to-b from-accent to-amber"
             />
             {steps.map((s, i) => (
-              <li key={s.title} data-reveal>
-                <span className="grid size-7 place-items-center rounded-full bg-surface-3 text-[13px] font-extrabold text-amber">
+              <li key={s.title}>
+                <Reveal distance={24}>
+                <span className="grid size-7 place-items-center rounded-full bg-surface-3 text-sm sm:text-[13px] font-extrabold text-amber">
                   {i + 1}
                 </span>
                 <h3 className="mt-3 text-2xl tracking-[-0.015em]">{s.title}</h3>
-                <p className="mt-1.5 max-w-[44ch] text-[15px] text-ink-2">{s.text}</p>
+                <p className="mt-1.5 max-w-[44ch] text-base text-ink-2 sm:text-[15px]">{s.text}</p>
+                </Reveal>
               </li>
             ))}
           </ol>
         </div>
-        <div data-reveal>
+        <Reveal distance={48} scale={0.97}>
           <RoundDemo />
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -115,10 +121,12 @@ export function HotPotato() {
   return (
     <section id="burn" className="section-y bg-accent text-accent-ink">
       <div className="wrap grid items-center gap-[clamp(32px,6vw,96px)] md:grid-cols-2">
-        <div data-reveal>
-          <h2 className="text-[clamp(2.25rem,5vw,4rem)] leading-none">
-            Hold it too long and you get burned.
-          </h2>
+        <div>
+          <Heading
+            text="Hold it too long and you get burned."
+            className="text-[clamp(2rem,5vw,4rem)] leading-[1.05]"
+          />
+          <Reveal delay={0.15} distance={20}>
           <p className="mt-5 max-w-[52ch] text-[clamp(1rem,1.3vw,1.125rem)] font-medium">
             The winner gets 150 blocks to run the job. Miss that window and their stake is slashed,
             you are compensated, and any keeper can grab the job.
@@ -126,18 +134,20 @@ export function HotPotato() {
           <p className="mt-6 font-display text-xl font-semibold italic">
             Mashed potato + mosh pit = Mashpit.
           </p>
+          </Reveal>
         </div>
-        <ol data-reveal>
+        <Reveal role="list" stagger={0.1} distance={24}>
           {failover.map((f) => (
-            <li
+            <div
+              role="listitem"
               key={f.at}
-              className="grid grid-cols-[5.5rem_1fr] gap-4 border-t border-accent-ink/30 py-4 font-semibold last:border-b"
+              className="grid grid-cols-[4.5rem_1fr] gap-3 border-t sm:grid-cols-[5.5rem_1fr] sm:gap-4 border-accent-ink/30 py-4 font-semibold last:border-b"
             >
-              <span className="pt-0.5 font-mono text-[13px] font-medium">{f.at}</span>
+              <span className="pt-0.5 font-mono text-sm sm:text-[13px] font-medium">{f.at}</span>
               {f.text}
-            </li>
+            </div>
           ))}
-        </ol>
+        </Reveal>
       </div>
     </section>
   );
@@ -171,11 +181,10 @@ export function Compare() {
   return (
     <section id="compare" className="section-y">
       <div className="wrap">
-        <h2 className={`${h2} max-w-[16ch]`} data-reveal>
-          Why not just a cron job?
-        </h2>
+        <Heading text="Why not just a cron job?" className={`${h2} max-w-[16ch]`} />
         {/* A real table on desktop; each row becomes a labelled stack on phones. */}
-        <table data-reveal className="mt-[clamp(32px,4vw,56px)] block w-full text-[15px] md:table">
+        <Reveal distance={28}>
+        <table className="mt-[clamp(32px,4vw,56px)] block w-full text-[15px] md:table">
           <thead className="hidden md:table-header-group">
             <tr>
               <th />
@@ -204,11 +213,11 @@ export function Compare() {
                 {r.cells.map((cell, i) => (
                   <td
                     key={columns[i]}
-                    className={`grid grid-cols-[8.5rem_1fr] gap-3 py-1 md:table-cell md:w-[27.33%] md:border-t md:border-line md:py-[18px] md:pr-5 md:align-top ${
+                    className={`grid grid-cols-1 gap-0.5 py-1.5 sm:grid-cols-[8.5rem_1fr] sm:gap-3 md:table-cell md:w-[27.33%] md:border-t md:border-line md:py-[18px] md:pr-5 md:align-top ${
                       i === 2 ? "font-semibold text-ink" : "text-ink-2"
                     }`}
                   >
-                    <span className="text-[13px] font-medium text-ink-3 md:hidden">{columns[i]}</span>
+                    <span className="text-sm sm:text-[13px] font-medium text-ink-3 md:hidden">{columns[i]}</span>
                     {cell}
                   </td>
                 ))}
@@ -216,6 +225,7 @@ export function Compare() {
             ))}
           </tbody>
         </table>
+        </Reveal>
       </div>
     </section>
   );
@@ -223,10 +233,15 @@ export function Compare() {
 
 export function Footer() {
   return (
-    <footer className="border-t border-line pt-7 pb-10 text-[13px] text-ink-3">
+    <footer className="border-t border-line pt-7 pb-10 text-sm sm:text-[13px] text-ink-3">
       <div className="wrap flex flex-wrap items-center justify-between gap-3">
         <Brand size="sm" />
-        <span>Built for NEAR Hackathon 2026 · testnet only · not audited</span>
+        <nav aria-label="Dashboard" className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-ink-2">
+          <Link href={routes.live} className="hover:text-ink">Live arena</Link>
+          <Link href={routes.keepers} className="hover:text-ink">Keepers</Link>
+          <Link href={routes.newJob} className="hover:text-ink">Post a job</Link>
+        </nav>
+        <span className="w-full sm:w-auto">Built for NEAR Hackathon 2026 · testnet only · not audited</span>
       </div>
     </footer>
   );

@@ -112,7 +112,7 @@ export function RoundDemo() {
               className="grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 border-t border-line py-3"
             >
               <span
-                className={`grid size-9 place-items-center rounded-[11px] text-[13px] font-extrabold transition-colors duration-300 ${
+                className={`grid size-9 place-items-center rounded-[11px] text-sm sm:text-[13px] font-extrabold transition-colors duration-300 ${
                   wins ? "bg-accent text-accent-ink" : "bg-surface-3"
                 }`}
               >
@@ -120,7 +120,7 @@ export function RoundDemo() {
               </span>
               <div>
                 <p className="font-mono text-xs font-medium">{b.id}.mashpit.testnet</p>
-                <p className={`mt-0.5 text-[13px] leading-snug ${open ? "text-ink-2" : "text-ink-3"}`}>
+                <p className={`mt-0.5 text-sm sm:text-[13px] leading-snug ${open ? "text-ink-2" : "text-ink-3"}`}>
                   {open ? `“${b.memo}”` : "Sealed bid"}
                 </p>
               </div>
@@ -130,7 +130,7 @@ export function RoundDemo() {
                 }`}
               >
                 {open ? b.bid : "Sealed"}
-                <small className="block font-sans text-[11px] font-medium text-ink-3">
+                <small className="block font-sans text-xs sm:text-[11px] font-medium text-ink-3">
                   {open ? "NEAR" : " "}
                 </small>
               </p>

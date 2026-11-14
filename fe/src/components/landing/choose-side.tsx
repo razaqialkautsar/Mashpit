@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Heading } from "./motion";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import potato from "@/assets/landing/potato.webp";
@@ -88,9 +89,9 @@ export function ChooseSide() {
 
       {/* One block: the title, then the 3D stage, then the two choices under it. */}
       <div className="relative pt-[clamp(64px,9vw,128px)]">
-        <h2 data-reveal className="wrap text-center text-[clamp(2rem,4.2vw,3.25rem)]">
-          Pick your side of the pit.
-        </h2>
+        <div className="wrap text-center">
+          <Heading text="Pick your side of the pit." className="text-[clamp(1.875rem,4.2vw,3.25rem)]" />
+        </div>
 
         <div className="relative mx-auto mt-[clamp(20px,3vw,40px)] grid max-w-[1320px] grid-cols-2 [&:has(a:focus-visible)>a:not(:focus-visible)]:opacity-45 [&:has(a:hover)>a:not(:hover)]:opacity-45">
           {sides.map((s) => {
@@ -112,11 +113,11 @@ export function ChooseSide() {
                   >
                     {s.title}
                   </span>
-                  <span className="mx-auto mt-2 block max-w-[34ch] text-[clamp(0.8125rem,1.2vw,1rem)] text-ink-2">
+                  <span className="mx-auto mt-2 block max-w-[34ch] text-[clamp(0.875rem,1.2vw,1rem)] leading-snug text-ink-2">
                     {s.text}
                   </span>
                   <span
-                    className={`mt-5 inline-flex rounded-full px-[22px] py-[13px] text-[15px] font-bold transition-transform duration-300 group-hover:-translate-y-0.5 ${t.cta}`}
+                    className={`mt-4 inline-flex rounded-full px-4 py-2.5 text-sm font-bold sm:mt-5 sm:px-[22px] sm:py-[13px] sm:text-[15px] transition-transform duration-300 group-hover:-translate-y-0.5 ${t.cta}`}
                   >
                     {s.cta}
                   </span>

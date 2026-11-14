@@ -28,10 +28,18 @@ export function createStage(host: HTMLElement, options: StageOptions) {
     antialias: true,
     alpha: true,
     powerPreference: "low-power",
+    // The page scrolls by transforming ScrollSmoother's wrapper. When Chrome
+    // re-rasters the canvas during that scroll, a cleared drawing buffer
+    // showed up as transparent horizontal strips. Keeping the last frame
+    // means any re-raster reads a complete image.
+    preserveDrawingBuffer: true,
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
   const canvas = renderer.domElement;
-  canvas.style.cssText = "display:block;width:100%;height:100%;touch-action:pan-y";
+  // Own compositor layer, so the canvas is never painted into the tiles of the
+  // (very tall, constantly transformed) smooth-scroll content layer.
+  canvas.style.cssText =
+    "display:block;width:100%;height:100%;touch-action:pan-y;transform:translateZ(0);will-change:transform";
   host.appendChild(canvas);
 
   const scene = new THREE.Scene();

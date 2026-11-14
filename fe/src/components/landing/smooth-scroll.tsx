@@ -1,18 +1,17 @@
 "use client";
 
 import { useRef, type ReactNode } from "react";
-import { gsap, ScrollSmoother, ScrollTrigger, useGSAP } from "@/lib/gsap";
+import { gsap, ScrollSmoother, useGSAP } from "@/lib/gsap";
 
 // Anchors land just below the fixed 72px nav.
 const ANCHOR_OFFSET = 88;
 
 /**
- * Wraps the page in GSAP ScrollSmoother and wires the scroll-linked effects:
- * - [data-reveal]  fades up once when it enters the viewport
+ * Wraps the page in GSAP ScrollSmoother and wires the scroll-linked effects
+ * (entrance animations live in ./motion.tsx, built on React Bits):
  * - [data-draw]    a line that scales in with scroll progress
  * - [data-speed]   parallax, handled by ScrollSmoother itself
- * Everything is skipped under prefers-reduced-motion, and content stays
- * visible if JS never runs.
+ * Everything here is skipped under prefers-reduced-motion.
  */
 export function SmoothScroll({ children }: { children: ReactNode }) {
   const wrapper = useRef<HTMLDivElement>(null);
@@ -41,24 +40,6 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
           history.replaceState(null, "", link.hash);
         };
         document.addEventListener("click", onAnchorClick);
-
-        const reveals = gsap.utils.toArray<HTMLElement>("[data-reveal]");
-        // Opacity, not autoAlpha: visibility:hidden would also hide these sections
-        // from screen readers until they are scrolled into view.
-        gsap.set(reveals, { opacity: 0, y: 28 });
-        ScrollTrigger.batch(reveals, {
-          start: "top 88%",
-          once: true,
-          onEnter: (batch) =>
-            gsap.to(batch, {
-              opacity: 1,
-              y: 0,
-              duration: 0.9,
-              ease: "expo.out",
-              stagger: 0.08,
-              overwrite: true,
-            }),
-        });
 
         gsap.utils.toArray<HTMLElement>("[data-draw]").forEach((line) => {
           gsap.fromTo(
