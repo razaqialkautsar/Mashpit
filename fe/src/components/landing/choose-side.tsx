@@ -29,18 +29,26 @@ const tones = {
   orange: {
     // Full-width layers centred on each glove, so the light fades out with no seam.
     glow: "bg-radial-[ellipse_55%_75%_at_34%_50%] from-accent/45 to-transparent",
-    title: "group-hover:text-accent group-focus-visible:text-accent",
+    // Matches its glove at rest, flips to the other side's colour on hover.
+    title: "text-accent group-hover:text-white group-focus-visible:text-white",
     cta: "bg-accent text-accent-ink",
   },
   mono: {
     glow: "bg-radial-[ellipse_55%_75%_at_66%_50%] from-white/22 to-transparent",
-    title: "group-hover:text-white group-focus-visible:text-white",
+    title: "text-white group-hover:text-accent group-focus-visible:text-accent",
     cta: "bg-ink text-bg",
   },
 } as const;
 
-// Height reserved for the 3D stage; the links' text starts below it.
-const STAGE = "clamp(210px,36vw,470px)";
+// Height of the 3D stage. The camera scales with this height, so the figure
+// grows with it.
+const STAGE = "clamp(252px,43.2vw,564px)";
+// How far the stage rises into the title, so the potato overlaps it.
+const OVERLAP = `calc(${STAGE} * 0.2)`;
+// Where the choice text starts. The gloves fill roughly the top half of the
+// stage and grow ~6% lower on hover, so 66% leaves a clear gap without the
+// empty band a full STAGE offset left under them.
+const TEXT_TOP = `calc(${STAGE} * 0.66)`;
 
 export function ChooseSide() {
   const host = useRef<HTMLDivElement>(null);
@@ -89,11 +97,14 @@ export function ChooseSide() {
 
       {/* One block: the title, then the 3D stage, then the two choices under it. */}
       <div className="relative pt-[clamp(64px,9vw,128px)]">
-        <div className="wrap text-center">
-          <Heading text="Pick your side of the pit." className="text-[clamp(1.875rem,4.2vw,3.25rem)]" />
+        {/* Layers, bottom to top: title, 3D stage, choice text. */}
+        <div className="wrap relative z-0 text-center">
+          <Heading text="Pick your side of the pit." className="text-[clamp(2.25rem,5.04vw,3.9rem)]" />
         </div>
 
-        <div className="relative mx-auto mt-[clamp(20px,3vw,40px)] grid max-w-[1320px] grid-cols-2 [&:has(a:focus-visible)>a:not(:focus-visible)]:opacity-45 [&:has(a:hover)>a:not(:hover)]:opacity-45">
+        <div
+          style={{ marginTop: `calc(-1 * ${OVERLAP})` }}
+          className="relative z-10 mx-auto grid max-w-[1320px] grid-cols-2 [&:has(a:focus-visible)>a:not(:focus-visible)]:opacity-45 [&:has(a:hover)>a:not(:hover)]:opacity-45">
           {sides.map((s) => {
             const t = tones[s.side];
             return (
@@ -104,10 +115,10 @@ export function ChooseSide() {
                 onPointerLeave={() => hover(null)}
                 onFocus={() => hover(s.side)}
                 onBlur={() => hover(null)}
-                style={{ paddingTop: STAGE }}
-                className="group relative flex flex-col items-center px-[clamp(8px,2vw,32px)] pb-[clamp(40px,6vw,80px)] text-center transition-opacity duration-300 focus-visible:outline-offset-[-6px]"
+                style={{ paddingTop: TEXT_TOP }}
+                className="group relative z-20 flex flex-col items-center px-[clamp(8px,2vw,32px)] pb-[clamp(40px,6vw,80px)] text-center transition-opacity duration-300 focus-visible:outline-offset-[-6px]"
               >
-                <span className="relative z-10 mt-[clamp(12px,2vw,28px)] block">
+                <span className="relative mt-[clamp(16px,2.4vw,32px)] block origin-top transition-transform duration-500 ease-out-expo group-hover:scale-[1.08] group-focus-visible:scale-[1.08]">
                   <span
                     className={`block font-display text-[clamp(1.15rem,2.4vw,1.75rem)] leading-tight font-semibold tracking-[-0.02em] transition-colors duration-300 ${t.title}`}
                   >
@@ -126,17 +137,17 @@ export function ChooseSide() {
             );
           })}
 
-          {/* The 3D stage sits over both links but lets every pointer event through. */}
+          {/* The 3D stage: above the title, below the choice text (which sits over its empty lower part). */}
           <div
             aria-hidden="true"
             style={{ height: STAGE }}
-            className="pointer-events-none absolute inset-x-0 top-0"
+            className="pointer-events-none absolute inset-x-0 top-0 z-10"
           >
             {status === "failed" ? (
               <Image
                 src={potato}
                 alt=""
-                sizes="210px"
+                sizes="252px"
                 className="mx-auto h-full w-auto object-contain"
               />
             ) : (

@@ -1,7 +1,4 @@
-import Link from "next/link";
 import { Heading, Reveal } from "./motion";
-import { routes } from "@/lib/routes";
-import { Brand } from "./brand";
 import { RoundDemo } from "./round-demo";
 
 const h2 = "text-[clamp(1.875rem,4.2vw,3.25rem)]";
@@ -110,49 +107,6 @@ export function HowItWorks() {
   );
 }
 
-const failover = [
-  { at: "due", text: "k2 won the round and holds the job." },
-  { at: "+150 blk", text: "k2 never executes. The window closes." },
-  { at: "slash", text: "0.05 NEAR leaves k2’s stake and lands in your job balance." },
-  { at: "+152 blk", text: "k3 runs the call in open mode and gets paid." },
-];
-
-export function HotPotato() {
-  return (
-    <section id="burn" className="section-y bg-accent text-accent-ink">
-      <div className="wrap grid items-center gap-[clamp(32px,6vw,96px)] md:grid-cols-2">
-        <div>
-          <Heading
-            text="Hold it too long and you get burned."
-            className="text-[clamp(2rem,5vw,4rem)] leading-[1.05]"
-          />
-          <Reveal delay={0.15} distance={20}>
-          <p className="mt-5 max-w-[52ch] text-[clamp(1rem,1.3vw,1.125rem)] font-medium">
-            The winner gets 150 blocks to run the job. Miss that window and their stake is slashed,
-            you are compensated, and any keeper can grab the job.
-          </p>
-          <p className="mt-6 font-display text-xl font-semibold italic">
-            Mashed potato + mosh pit = Mashpit.
-          </p>
-          </Reveal>
-        </div>
-        <Reveal role="list" stagger={0.1} distance={24}>
-          {failover.map((f) => (
-            <div
-              role="listitem"
-              key={f.at}
-              className="grid grid-cols-[4.5rem_1fr] gap-3 border-t sm:grid-cols-[5.5rem_1fr] sm:gap-4 border-accent-ink/30 py-4 font-semibold last:border-b"
-            >
-              <span className="pt-0.5 font-mono text-sm sm:text-[13px] font-medium">{f.at}</span>
-              {f.text}
-            </div>
-          ))}
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
 const columns = ["Your own bot", "GitHub Actions", "Mashpit"] as const;
 const rows = [
   {
@@ -228,21 +182,5 @@ export function Compare() {
         </Reveal>
       </div>
     </section>
-  );
-}
-
-export function Footer() {
-  return (
-    <footer className="border-t border-line pt-7 pb-10 text-sm sm:text-[13px] text-ink-3">
-      <div className="wrap flex flex-wrap items-center justify-between gap-3">
-        <Brand size="sm" />
-        <nav aria-label="Dashboard" className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-ink-2">
-          <Link href={routes.live} className="hover:text-ink">Live arena</Link>
-          <Link href={routes.keepers} className="hover:text-ink">Keepers</Link>
-          <Link href={routes.newJob} className="hover:text-ink">Post a job</Link>
-        </nav>
-        <span className="w-full sm:w-auto">Built for NEAR Hackathon 2026 · testnet only · not audited</span>
-      </div>
-    </footer>
   );
 }

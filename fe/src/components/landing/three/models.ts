@@ -42,7 +42,7 @@ function outlineMaterial(thickness: number) {
   });
 }
 
-function outlined(geometry: THREE.BufferGeometry, material: THREE.Material, thickness = 0.022) {
+export function outlined(geometry: THREE.BufferGeometry, material: THREE.Material, thickness = 0.022) {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.add(new THREE.Mesh(geometry, outlineMaterial(thickness)));
   return mesh;
@@ -348,4 +348,101 @@ export function createPointer() {
   thumb.rotation.z = 0.5;
   pointer.add(thumb);
   return pointer;
+}
+
+// ── Sleeping keeper (Hot potato section) ─────────────────────────────────
+
+export const AGENT_SHELL = 0xcfc8be;
+
+/**
+ * A big keeper head, same build as the agents above: rounded shell, dark
+ * visor, amber eyes, antenna. Two sets of eyes: closed arcs while it dozes,
+ * wide open once it catches fire. The shell material is returned so the
+ * scene can char it.
+ */
+export function createSleeperHead() {
+  const head = new THREE.Group();
+  const shell = toon(AGENT_SHELL);
+  const box = (w: number, h: number, d: number, r: number) => new RoundedBoxGeometry(w, h, d, 4, r);
+
+  head.add(outlined(box(2, 1.6, 1.7, 0.36), shell, 0.03));
+
+  const visor = new THREE.Mesh(box(1.58, 0.82, 0.12, 0.05), new THREE.MeshBasicMaterial({ color: INK }));
+  visor.position.set(0, 0.02, 0.83);
+  head.add(visor);
+
+  const eyeLight = new THREE.MeshBasicMaterial({ color: 0xffd38a });
+
+  // Closed: a downward arc per eye, like ‿.
+  const asleep = new THREE.Group();
+  for (const side of [-1, 1]) {
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.035, 8, 24, Math.PI), eyeLight);
+    arc.rotation.z = Math.PI;
+    arc.position.set(0.37 * side, 0.08, 0.9);
+    asleep.add(arc);
+  }
+  head.add(asleep);
+
+  // Open: round and startled, with an ink pupil.
+  const awake = new THREE.Group();
+  for (const side of [-1, 1]) {
+    const white = new THREE.Mesh(new THREE.CircleGeometry(0.2, 28), eyeLight);
+    white.position.set(0.37 * side, 0.04, 0.9);
+    const pupil = new THREE.Mesh(new THREE.CircleGeometry(0.07, 20), new THREE.MeshBasicMaterial({ color: INK }));
+    pupil.position.set(0.37 * side, 0.04, 0.905);
+    awake.add(white, pupil);
+  }
+  awake.visible = false;
+  head.add(awake);
+
+  const metal = toon(0x9a9188);
+  for (const side of [-1, 1]) {
+    const bolt = outlined(new THREE.CylinderGeometry(0.2, 0.2, 0.16, 24).rotateZ(Math.PI / 2), metal, 0.02);
+    bolt.position.set(1.04 * side, 0, 0);
+    head.add(bolt);
+  }
+
+  const stalk = outlined(new THREE.CylinderGeometry(0.045, 0.045, 0.42, 12), metal, 0.015);
+  stalk.position.set(0, 1.0, 0);
+  head.add(stalk);
+  const bulbMaterial = new THREE.MeshBasicMaterial({ color: 0xffb54a });
+  const bulb = outlined(new THREE.SphereGeometry(0.13, 20, 14), bulbMaterial, 0.018);
+  bulb.position.set(0, 1.27, 0);
+  head.add(bulb);
+
+  return { head, shell, asleep, awake, bulbMaterial };
+}
+
+/** A cartoon flame: a round-bottomed teardrop with a pale core, base at y = 0. */
+export function createFlame(height: number, radius: number) {
+  const profile = (r: number, h: number) =>
+    Array.from({ length: 18 }, (_, i) => {
+      const t = i / 17;
+      return new THREE.Vector2(r * Math.sqrt(Math.sin(Math.PI * t)) * Math.pow(1 - t, 0.6), h * t);
+    });
+  const flame = new THREE.Group();
+  flame.add(outlined(new THREE.LatheGeometry(profile(radius, height), 20), new THREE.MeshBasicMaterial({ color: 0xff8a2a }), 0.02));
+  const core = new THREE.Mesh(
+    new THREE.LatheGeometry(profile(radius * 0.55, height * 0.62), 16),
+    new THREE.MeshBasicMaterial({ color: 0xffe9a8 }),
+  );
+  core.position.z = radius * 0.3;
+  flame.add(core);
+  return flame;
+}
+
+/** A "Z" drawn on a sprite, for the snoring. */
+export function createSnoreSprite() {
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = "#1a0b05";
+  context.font = "900 104px system-ui, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText("Z", size / 2, size / 2 + 6);
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false }));
 }
