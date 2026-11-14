@@ -61,6 +61,7 @@ To run several keepers on one machine, give each its own env file (`.env.k1`, `.
 | `CONTRACT_ID` | | `contract.mashpit.testnet` | |
 | `RPC_URLS` | | FastNEAR, dRPC, Intear, ZAN (testnet) | Comma-separated, tried in order; a failing or rate-limited endpoint moves the keeper to the next |
 | `POLL_MS` / `IDLE_POLL_MS` | | `3000` / `20000` | Poll interval when an action is near / when every job is idle |
+| `OPEN_JITTER_MS` | | `4000` | Longest random wait before executing in an open round |
 | `NEAR_AI_API_KEY`, `NEAR_AI_MODEL` | | empty | Both set: bids come from the model. Otherwise the deterministic rule is used |
 | `NEAR_AI_BASE_URL` | | `https://cloud-api.near.ai/v1` | OpenAI-compatible endpoint |
 | `NEAR_AI_TIMEOUT_MS` | | `15000` | After this the keeper falls back to the rule |
@@ -108,6 +109,13 @@ no `temperature` (some models accept only their default) and allows up to 800 to
 after each failure in a round (50, then 100 blocks) and gives the round up after 3 failures. It
 stops bidding on a job whose target failed in 3 of its last 5 runs, and the AI sees the failure
 count too.
+
+**Open rounds.** When any keeper may run a call, all of them see it on the same block. Each keeper
+waits a random 0–4 s (`OPEN_JITTER_MS`), re-reads the job, and stands down if another keeper is
+already running it, so fewer keepers pay gas for a rejected call.
+
+**Paused jobs.** A paused job gets no new bids and no runs, but the keeper still reveals a bid it
+committed before the pause. The contract accepts the reveal, and skipping it would lose the bond.
 
 **Gas money.** Every few minutes the keeper checks its balance. When it runs low it calls
 `withdraw_rewards`; when it is critically low with nothing to withdraw, it stops committing new
