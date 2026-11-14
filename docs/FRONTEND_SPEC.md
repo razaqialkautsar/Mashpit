@@ -5,8 +5,9 @@
 | Versi | v1 (draf), 13 Nov 2026 |
 | Pemilik | Bayu |
 | Terkait | [PRD.md](PRD.md), [SMART_CONTRACT_SPEC.md](SMART_CONTRACT_SPEC.md) |
+| Agent skills | `near-dapp`, `near-api-js` (terpasang di proyek lewat `npx skills add near/agent-skills`) |
 
-Isi dokumen ini adalah **rancangan** kecuali yang ditandai **Fakta**. Bagian yang ditandai ⚠ perlu dicek ke dokumentasi resmi sebelum implementasi.
+Isi dokumen ini adalah **rancangan** kecuali yang ditandai **Fakta**. API library sudah dicek di docs.near.org dan README near-api-js pada 13 Nov 2026 (§2).
 
 ---
 
@@ -28,6 +29,9 @@ Requirement terkait di PRD: FR-W1 s/d FR-W5, NFR-5, NFR-6, NFR-9.
 | Waktu blok terukur: testnet ~0,582 detik/blok (rata-rata 1000 blok, 13 Nov) | Pengukuran RPC |
 | Format link explorer testnet yang dipakai proyek lain: `https://testnet.nearblocks.io/address/<akun>` | README Slay the Bear |
 | Hosted demo nilai plus; biarkan online sampai 18 Nov, ideal 25 Nov | Q-012 |
+| near-api-js v7: view call lewat `new JsonRpcProvider({ url })` lalu `provider.callFunction({ contractId, method, args })` (perhatikan: field-nya `method`). Butuh Node.js 22.22.2 atau lebih baru untuk tooling | [README near-api-js](https://github.com/near/near-api-js), [docs near-api](https://docs.near.org/tools/near-api) |
+| NEAR Connect: `new NearConnector({ network: "testnet" })`; login dengan `connector.connect()`, akun dari `getAccounts()`, event `wallet:signIn`; transaksi lewat `(await connector.wallet()).signAndSendTransaction({ receiverId, actions: [{ type: "FunctionCall", params: { methodName, args, gas, deposit } }] })`; banyak transaksi dalam satu persetujuan lewat `signAndSendTransactions({ transactions })` | [docs wallet login](https://docs.near.org/web3-apps/tutorials/wallet-login) |
+| "NEAR Connect does not provide a built-in way to call read-only (view) methods" → view call tetap lewat near-api-js | [docs near-connect](https://docs.near.org/tools/near-connect) |
 
 ---
 
@@ -127,8 +131,8 @@ Angka di wireframe adalah contoh tata letak, bukan data.
 
 | Modul | Tanggung jawab |
 | --- | --- |
-| `lib/near.ts` | Koneksi RPC (view call) dengan near-api-js. ⚠ Nama kelas/fungsi provider di near-api-js 7.x dicek di docs |
-| `lib/wallet.ts` | Inisialisasi NEAR Connect dan pengiriman transaksi. ⚠ Ikuti contoh di [docs wallet login](https://docs.near.org/web3-apps/tutorials/wallet-login) |
+| `lib/near.ts` | View call: satu instance `JsonRpcProvider` (URL dari `VITE_RPC_URL`), fungsi `view(method, args)` yang membungkus `provider.callFunction({ contractId, method, args })` |
+| `lib/wallet.ts` | Satu instance `NearConnector({ network: "testnet" })`; `signIn()` → `connect()` + `getAccounts()`; `call(methodName, args, gas, deposit)` → `wallet.signAndSendTransaction` dengan action `FunctionCall`. Skill `near-dapp` menyebut paket `near-connect-hooks` untuk React; pemakaiannya keputusan Bayu |
 | `lib/contract.ts` | Fungsi bertipe untuk setiap view dan change method di SMART_CONTRACT_SPEC §4 |
 | `lib/types.ts` | Tipe TypeScript yang mencerminkan `JobView`, `Round`, `ExecutionRecord`, `Keeper`, `Config` dari SMART_CONTRACT_SPEC §2 |
 | `lib/format.ts` | yocto ↔ NEAR (BigInt), blok → perkiraan detik, pemendekan nama akun |
@@ -212,12 +216,12 @@ web/
 | --- | --- | --- |
 | Nama dan bentuk JSON view method | SMART_CONTRACT_SPEC §2 dan §4.6 (dibekukan lebih dulu) | 13 Nov, awal |
 | Kontrak versi awal ter-deploy di testnet dengan view method | `CONTRACT_ID` testnet | 13 Nov malam |
-| Job dan keeper nyata di kontrak | `seed-jobs.sh`, `create-keepers.sh` | 14 Nov pagi |
+| Job dan keeper nyata di kontrak | `scripts/seed-jobs.mjs`, `scripts/create-keepers.mjs` | 14 Nov pagi |
 
 ---
 
 ## 10. Pertanyaan terbuka (frontend)
 
 - [ ] Framework dan hosting (PRD D4, D5).
-- [ ] API persis NEAR Connect dan provider near-api-js 7.x (⚠).
+- [ ] Pakai `near-connect-hooks` (disebut skill `near-dapp`) atau NEAR Connect langsung.
 - [ ] Apakah halaman Live perlu menampilkan perbandingan dengan GitHub Actions (bahan pitch) atau cukup di README.

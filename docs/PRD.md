@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Versi | v1 (draf), 13 Nov 2026 |
-| Tim | Razaqi (smart contract), Bayu (frontend) |
+| Tim | Razaqi (smart contract + keeper agent), Bayu (frontend) |
 | Hackathon | NEAR HACKATHON 2026; deadline submisi 14 Nov 2026, 23:59 UTC |
 | Track | AI Swarms (utama), Open Innovation (kedua) |
 | Dokumen terkait | [SMART_CONTRACT_SPEC.md](SMART_CONTRACT_SPEC.md), [FRONTEND_SPEC.md](FRONTEND_SPEC.md) |
@@ -38,7 +38,7 @@ Waktu tersisa saat dokumen ditulis: sekitar 36 jam (13 Nov 11:15 UTC sampai 14 N
 | P1 | Job tambahan: `ping` staking pool testnet; `epoch_stake` LiNEAR dengan aturan "harus mengembalikan `true`" | Memperlihatkan verifikasi hasil |
 | **Di luar MVP** | Pembayaran lewat NEAR Intents, reward token NEP-141, opsi AI 2 (bahasa alami → job), lelang untuk N > 1 eksekusi, mainnet, reputasi keeper, audit | Lihat §3.2 |
 
-**Keputusan yang dibutuhkan** ada di §12, termasuk siapa yang membangun keeper agent (tidak termasuk peran "smart contract" maupun "frontend").
+**Keputusan yang dibutuhkan** ada di §12. Keeper agent dikerjakan Razaqi (keputusan tim, 13 Nov).
 
 ---
 
@@ -155,7 +155,7 @@ Detail method, struktur data, dan error ada di [SMART_CONTRACT_SPEC.md](SMART_CO
 | FR-C1 | Keeper mendaftar dengan stake (attached deposit ≥ `min_keeper_stake`), menambah stake, menarik stake bebas, dan menarik reward | P0 |
 | FR-C2 | Pemilik job mendaftarkan job: target, method, args (base64), gas (Tgas), jadwal, aturan sukses, `max_reward`, saldo awal. Deposit harus menutup saldo + biaya storage | P0 |
 | FR-C3 | Setiap job punya satu putaran (round) aktif untuk eksekusi berikutnya: fase commit → reveal → pemenang → jendela eksklusif → mode terbuka | P0 |
-| FR-C4 | Commit: keeper menyimpan hash tawaran + jaminan; syarat stake bebas ≥ `stake_multiplier × max_reward` | P0 |
+| FR-C4 | Commit: keeper menyimpan hash tawaran; jaminan dikunci dari stake bebas (bukan attached deposit, supaya bisa dipanggil dengan function-call key); syarat stake bebas ≥ `stake_multiplier × max_reward` | P0 |
 | FR-C5 | Reveal: tawaran ≤ `max_reward` dan cocok dengan hash; boleh menyertakan `memo` (alasan AI, dibatasi panjangnya). Jaminan keeper yang tidak reveal hangus ke saldo job | P0 |
 | FR-C6 | Penentuan pemenang deterministik: tawaran terendah → commit di blok lebih awal → nama akun lebih kecil | P0 |
 | FR-C7 | `execute`: hanya pemenang selama jendela eksklusif; keeper terdaftar mana pun di mode terbuka. Eksekusi lewat cross-contract call + callback | P0 |
@@ -173,10 +173,10 @@ Detail method, struktur data, dan error ada di [SMART_CONTRACT_SPEC.md](SMART_CO
 | FR-K1 | Berjalan terus; membaca job dan putaran aktif lewat RPC view | P0 |
 | FR-K2 | Untuk setiap putaran baru, meminta keputusan ke model AI (ikut/tidak, tawaran, alasan singkat) dengan input: `max_reward`, perkiraan biaya gas, riwayat eksekusi job | P0 |
 | FR-K3 | Kalau model gagal atau terlambat, memakai aturan cadangan deterministik (misalnya tawaran = biaya gas × faktor margin) | P0 |
-| FR-K4 | Mengirim commit dan reveal pada fase yang benar; menyimpan salt secara lokal sampai reveal | P0 |
+| FR-K4 | Mengirim commit dan reveal pada fase yang benar. Salt diturunkan secara deterministik dari rahasia keeper + `job_id` + `round_id` (usulan), sehingga keeper tetap bisa reveal setelah restart tanpa menyimpan state; storage service Railway bersifat sementara | P0 |
 | FR-K5 | Kalau menang, mengeksekusi saat job jatuh tempo; kalau ada slot terbuka, ikut mengeksekusi | P0 |
 | FR-K6 | Memicu `slash_missed` kalau menemukan pemenang yang lalai | P1 |
-| FR-K7 | Kunci akun keeper dan API key AI dibaca dari variabel lingkungan, tidak pernah di-commit | P0 |
+| FR-K7 | Kunci akun keeper dan API key AI dibaca dari variabel lingkungan, tidak pernah di-commit. Keeper di Railway hanya memegang **function-call key** ke kontrak `mashpit` dengan method terbatas; full-access key hanya dipakai lokal untuk registrasi dan stake (fakta: function-call key tidak bisa melampirkan NEAR atau mentransfer NEAR, [docs access keys](https://docs.near.org/protocol/accounts-contracts/access-keys)) | P0 |
 
 **Dashboard (web)**
 
@@ -195,10 +195,10 @@ Detail method, struktur data, dan error ada di [SMART_CONTRACT_SPEC.md](SMART_CO
 | NFR-1 | Total gas per transaksi `execute` (gas target + callback + overhead) ≤ 300 Tgas | Docs NEAR berbeda soal batas prepaid gas (300 Tgas di halaman environment, 1.000 Tgas di halaman gas); 300 Tgas dipilih sebagai batas aman |
 | NFR-2 | Storage yang dibuat oleh pengguna dibayar oleh pengguna (deposit ≥ pertambahan storage × 1E19 yoctoNEAR/byte) | [Docs storage staking](https://docs.near.org/protocol/storage/storage-staking) |
 | NFR-3 | Data yang tumbuh tak terbatas dibatasi (riwayat per job maks N entri; memo maks M byte) | Turunan NFR-2 |
-| NFR-4 | Tidak ada private key atau API key di repo atau riwayat git | [HACKATHON.md](../HACKATHON.md) (aturan secrets); [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) |
+| NFR-4 | Tidak ada private key atau API key di repo atau riwayat git | [HACKATHON.md](../HACKATHON.md) (aturan secrets); checklist [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) di repo prompt contoh |
 | NFR-5 | Dashboard memperbarui data dalam ≤ 5 detik (polling RPC) | Waktu blok terukur ~0,58 detik; usulan |
 | NFR-6 | Dashboard bisa diakses tanpa login dan berjalan sebagai situs statis | Q-009 (RPC publik gratis); Q-012 (hosted demo nilai plus) |
-| NFR-7 | Keeper referensi berjalan di minimal 2–3 mesin/proses terpisah dan tetap hidup sampai 18 Nov (ideal 25 Nov) | Q-012; desain failover |
+| NFR-7 | Keeper referensi berjalan sebagai 3 service terpisah di Railway (Serverless OFF) dan tetap hidup sampai 18 Nov (ideal 25 Nov) | Q-012; desain failover; Railway: service "always running" kecuali Serverless diaktifkan ([docs](https://docs.railway.com/deployments/serverless)) |
 | NFR-8 | Kontrak dan keeper bisa direproduksi dari README (build, deploy, jalankan) | Q-017 (screening reproduksibilitas) |
 | NFR-9 | Dashboard responsif di layar desktop dan ponsel | Usulan |
 | NFR-10 | Semua library dan template yang dipakai dicantumkan di README; ada file LICENSE | Q-005, Q-014 |
@@ -260,7 +260,7 @@ Wireframe kasar per halaman ada di [FRONTEND_SPEC.md §4](FRONTEND_SPEC.md#4-wir
 | --- | --- | --- |
 | AC-1 | Keeper bisa register, commit, reveal; hash yang tidak cocok ditolak | Unit test kontrak + transaksi testnet |
 | AC-2 | Pemenang sesuai aturan seri (tawaran → blok commit → nama akun) | Unit test dengan tawaran sama |
-| AC-3 | `execute` oleh non-pemenang ditolak selama jendela eksklusif, diterima di mode terbuka | Unit test + integration test (near-workspaces) |
+| AC-3 | `execute` oleh non-pemenang ditolak selama jendela eksklusif, diterima di mode terbuka | Unit test + integration test (`near-sandbox` + `near-api`) |
 | AC-4 | Callback gagal (target panic) → tidak ada pembayaran, putaran tidak hilang | Integration test dengan kontrak target dummy yang panic |
 | AC-5 | Aturan `ReturnsTrue`: nilai `false` → tidak dibayar | Integration test |
 | AC-6 | Job `EveryEpoch` tidak bisa dibayar dua kali di epoch yang sama | Unit test |
@@ -271,7 +271,7 @@ Wireframe kasar per halaman ada di [FRONTEND_SPEC.md §4](FRONTEND_SPEC.md#4-wir
 
 ### 6.2 Release criteria (submisi hackathon)
 
-Dari [HACKATHON.md](../HACKATHON.md) dan [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) (checklist resmi dari repo [near-hackathon-prompt-examples](https://github.com/nearai/near-hackathon-prompt-examples)):
+Dari [HACKATHON.md](../HACKATHON.md) (aturan resmi) dan checklist [SUBMITTING.md](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/SUBMITTING.md) di repo prompt contoh `nearai/near-hackathon-prompt-examples`. Repo prompt contoh itu disebut HACKATHON.md sebagai "a starting point, not a requirement"; isi checklist-nya sejalan dengan aturan resmi:
 
 - [ ] Repo publik sebelum 2026-11-14T23:59:00Z, dengan LICENSE.
 - [ ] README untuk pembaca mesin dan manusia: apa produknya, masalahnya, langkah "do X - see Y". Tanpa bahasa marketing.
@@ -315,9 +315,11 @@ Semua metrik dibaca dari view method kontrak (tanpa backend analitik):
 | Risiko | Dampak | Mitigasi |
 | --- | --- | --- |
 | Waktu tidak cukup (±36 jam, 2 orang) | Demo tidak lengkap | Kerjakan P0 dulu; P1 hanya kalau P0 selesai; slashing bisa ditunjukkan lewat unit test kalau tidak sempat di testnet |
-| Keeper agent belum punya pemilik (§12) | Bagian inti tidak dikerjakan | Putuskan di awal |
-| Callback/gas salah hitung → eksekusi gagal | Job demo gagal | Integration test dengan near-workspaces; uji di testnet sebelum demo |
+| Beban kerja Razaqi besar (kontrak + keeper agent) | Keeper agent atau slashing tidak selesai | Kerjakan keeper dengan aturan cadangan deterministik dulu, baru tambahkan keputusan AI; P1 kontrak dikerjakan setelah keeper P0 jalan; Bayu membantu bagian keeper berbasis TypeScript kalau dashboard P0 selesai lebih cepat |
+| Callback/gas salah hitung → eksekusi gagal | Job demo gagal | Integration test dengan `near-sandbox` + `near-api`; uji di testnet sebelum demo |
 | Model AI lambat/gagal | Keeper melewatkan fase commit | Aturan cadangan deterministik (FR-K3) |
+| Push ke repo memicu auto-deploy Railway di tengah fase commit-reveal | Keeper restart, gagal reveal, jaminan hangus | Batasi auto-deploy dengan watch paths `keeper/**`, atau matikan auto-deploy menjelang demo; salt deterministik (FR-K4) supaya keeper tetap bisa reveal setelah restart. Fakta: "When a new commit is pushed to the linked branch, Railway will automatically build and deploy the new code" ([docs](https://docs.railway.com/deployments/github-autodeploys)) |
+| Cara menghentikan service Railway untuk demo failover belum terverifikasi | Demo failover tersendat | Cek halaman CLI `railway down` / `restart` sebelum demo; alternatif: keeper punya flag env untuk berhenti mengeksekusi |
 | `epoch_update_rewards` tidak berguna kalau sudah dipanggil pihak lain di epoch itu | Eksekusi "sia-sia" tetap dibayar (fungsi tidak mengembalikan nilai) | Diakui sebagai keterbatasan; demo `epoch_stake` dengan `ReturnsTrue` (P1) sebagai pembanding |
 | `epoch_stake` testnet mengembalikan `false` karena tidak ada stake baru | Demo `ReturnsTrue` tidak menunjukkan pembayaran | Deposit ≥ 1 NEAR ke LiNEAR testnet sebelum demo (`MIN_AMOUNT_TO_PERFORM_STAKE = ONE_NEAR`) |
 | Juri bertanya "kenapa tidak GitHub Actions?" | Nilai produk dipertanyakan | Siapkan perbandingan berdasarkan batasan resmi GitHub Actions (§1.1 butir 5) dan contoh [LastKey Bunker](https://github.com/mastrophot/lastkey-bunker), [Code Blue](https://github.com/0xNoramiya/rosc), [Slay the Bear](https://github.com/vibe-code-guy/slay-the-bear) |
@@ -332,9 +334,12 @@ Semua metrik dibaca dari view method kontrak (tanpa backend analitik):
 | `linear-protocol.testnet` (pihak ketiga) | Job demo utama | 5 validator testnet: `bee1stake`, `chorusone`, `aurora`, `01node`, `everstake` (`*.pool.f863973.m0`) |
 | Staking pool testnet (mis. `aurora.pool.f863973.m0`) | Job demo `ping` (P1) | |
 | NEAR AI Cloud (`https://cloud-api.near.ai/v1`, OpenAI-compatible) | Keputusan tawaran keeper | Harga model publik di `/v1/models` |
-| near-sdk 5.30.1, cargo-near 0.23.0, near-workspaces 0.24.0 | Kontrak dan test | Versi terbaru di crates.io per 13 Nov |
-| near-api-js 7.5.3, @hot-labs/near-connect 0.12.0 | Keeper dan dashboard | Docs NEAR: Wallet Selector deprecated, pakai NEAR Connect |
-| Hosting statis + mesin untuk keeper | Demo hidup sampai 18–25 Nov | Belum dipilih (§12) |
+| near-sdk 5.30.1, cargo-near 0.23.0 | Kontrak | Versi terbaru di crates.io per 13 Nov |
+| `cargo test`, `near-sandbox`, `near-api` | Test kontrak | Cara yang disebut [docs testing NEAR](https://docs.near.org/smart-contracts/testing/integration-test) |
+| near-api-js 7.5.3, @hot-labs/near-connect 0.12.0 | Keeper dan dashboard | Docs NEAR: Wallet Selector deprecated, pakai NEAR Connect. near-api-js v7 butuh Node.js ≥ 22.22.2 |
+| NEAR agent skills (`near/agent-skills`) | Bantuan coding agent | 8 skill terpasang di proyek; daftar dan hash di `skills-lock.json`. Anggota tim memasang ulang dengan `npx skills experimental_install` |
+| Railway (keeper) | 3 keeper berjalan terus sampai 18–25 Nov | Satu repo, Root Directory `keeper` per service; sealed variables untuk kunci ([docs monorepo](https://docs.railway.com/deployments/monorepo), [docs variables](https://docs.railway.com/variables)). Harga: Free $1/bulan, Trial sekali $5, Hobby $5/bulan termasuk pemakaian $5 ([docs pricing](https://docs.railway.com/reference/pricing)); biaya nyata tergantung RAM/CPU yang belum diukur |
+| Hosting statis (dashboard) | Hosted demo (Q-012) | Belum dipilih (§12, D5) |
 
 ---
 
@@ -350,7 +355,7 @@ Semua metrik dibaca dari view method kontrak (tanpa backend analitik):
                         └──────────▲──────────────────────────▲──────────────────────────────────┘
                                    │ RPC (view + tx)          │ RPC (view saja)
               ┌────────────────────┴───────────┐     ┌────────┴─────────────────┐
-              │ Keeper agent × 3 (server)       │     │ Dashboard (situs statis) │
+              │ Keeper agent × 3 (Railway)      │     │ Dashboard (situs statis) │
               │ k1/k2/k3.<akun>.testnet         │     │ baca view method          │
               │ ── NEAR AI Cloud (keputusan) ── │     │ NEAR Connect untuk form   │
               └─────────────────────────────────┘     └──────────────────────────┘
@@ -360,6 +365,7 @@ Semua metrik dibaca dari view method kontrak (tanpa backend analitik):
 - Keeper: TypeScript (Node), near-api-js; proses berjalan terus.
 - Dashboard: TypeScript, situs statis; membaca kontrak lewat RPC publik.
 - Tidak ada database atau API pusat milik tim. Server hanya menjalankan proses keeper, karena kontrak tidak bisa berjalan sendiri (§1.1 butir 1).
+- Hosting keeper: Railway, 3 service dari repo ini dengan Root Directory `keeper` (keputusan tim, 13 Nov). Repo tetap satu, supaya kode keeper ikut berada di repo yang dinilai juri (form submisi hanya menerima satu link repo; HACKATHON.md).
 
 ---
 
@@ -370,7 +376,8 @@ Mashpit/
 ├── README.md                       # "do X - see Y" untuk juri (Q-017)
 ├── LICENSE                         # MIT (Q-014)
 ├── HACKATHON.md                    # salinan aturan resmi
-├── .gitignore                      # .env, target/, node_modules/, keeper state
+├── skills-lock.json                # daftar NEAR agent skills (skill-nya sendiri di .claude/skills, tidak di-commit)
+├── .gitignore                      # .claude/, .env, target/, node_modules/, keeper state
 ├── docs/
 │   ├── PRD.md
 │   ├── SMART_CONTRACT_SPEC.md
@@ -388,7 +395,7 @@ Mashpit/
 │       │   ├── execute.rs          # execute, callback, slash_missed
 │       │   ├── views.rs            # view method untuk dashboard
 │       │   └── events.rs           # log event
-│       └── tests/                  # near-workspaces integration tests
+│       └── tests/                  # integration tests (near-sandbox + near-api)
 │           ├── auction.rs
 │           ├── execute.rs
 │           └── mock_target/        # kontrak dummy: sukses, panic, return bool
@@ -398,7 +405,7 @@ Mashpit/
 │   └── src/
 │       ├── index.ts                # loop utama
 │       ├── near.ts                 # RPC + kirim transaksi
-│       ├── auction.ts              # commit/reveal, simpan salt
+│       ├── auction.ts              # commit/reveal, salt deterministik
 │       ├── ai.ts                   # panggil NEAR AI Cloud, parse keputusan
 │       ├── fallback.ts             # aturan cadangan deterministik
 │       └── config.ts
@@ -408,21 +415,23 @@ Mashpit/
 │   └── src/                        # detail di FRONTEND_SPEC.md §6
 └── scripts/
     ├── deploy.sh                   # build + deploy + init kontrak
-    ├── create-keepers.sh           # buat sub-account k1..k3 + register
-    └── seed-jobs.sh                # daftarkan job demo (LiNEAR, ping)
+    ├── create-keepers.mjs          # sub-account k1..k3, register + stake, tambah function-call key
+    └── seed-jobs.mjs               # daftarkan job demo (LiNEAR, ping)
 ```
 
 ---
 
 ## 10. Rencana kerja dan pembagian tim (usulan)
 
-| Waktu (UTC) | Razaqi (smart contract) | Bayu (frontend) | Pemilik belum ditentukan (§12) |
-| --- | --- | --- | --- |
-| 13 Nov, s/d 15:00 | Skeleton kontrak, types, keeper + job registry | Skeleton web, koneksi RPC, baca view LiNEAR testnet sebagai uji koneksi | — |
-| 13 Nov, 15:00–24:00 | Lelang commit-reveal, execute + callback, unit test | Halaman Live, detail job, keeper (pakai ABI view dari spec) | Skeleton keeper agent |
-| 14 Nov, 00:00–10:00 | Integration test (mock target), deploy testnet, `seed-jobs` | Hubungkan ke kontrak testnet; form buat job (P1) | Keeper: commit/reveal/execute + AI + cadangan |
-| 14 Nov, 10:00–18:00 | Slashing (P1), job `ping` + `epoch_stake` (P1), perbaikan | Tampilan memo AI, riwayat, failover; polish | 3 keeper berjalan di server; uji failover |
-| 14 Nov, 18:00–23:00 | README bagian kontrak, rekam demo | README bagian web, rekam demo, post X | Submisi (ditinjau manusia), buffer |
+| Waktu (UTC) | Razaqi (smart contract + keeper agent) | Bayu (frontend) |
+| --- | --- | --- |
+| 13 Nov, s/d 15:00 | Skeleton kontrak, types, registry keeper + job; deploy versi awal dengan view method secepatnya | Skeleton web, koneksi RPC, uji koneksi dengan view LiNEAR testnet |
+| 13 Nov, 15:00–24:00 | Lelang commit-reveal, execute + callback, unit test | Halaman Live, detail job, keeper (memakai bentuk view dari spec) |
+| 14 Nov, 00:00–06:00 | Integration test (mock target), deploy testnet, `create-keepers`, `seed-jobs` | Hubungkan ke kontrak testnet; form buat job (P1) |
+| 14 Nov, 06:00–14:00 | Keeper agent: commit/reveal/execute dengan aturan cadangan, lalu keputusan AI; 3 keeper berjalan di Railway | Tampilan memo AI, riwayat, failover; polish |
+| 14 Nov, 14:00–19:00 | Slashing (P1), uji failover, job `ping` + `epoch_stake` (P1) | Bantu keeper kalau dashboard P0 selesai; README bagian web |
+| 14 Nov, 19:00–23:00 | README bagian kontrak + keeper, rekam demo | Rekam demo, post X | 
+| 14 Nov, 23:00–23:59 | Submisi (payload ditinjau berdua), buffer | |
 
 ---
 
@@ -440,11 +449,11 @@ Mashpit/
 
 | # | Keputusan | Usulan |
 | --- | --- | --- |
-| D1 | Siapa membangun keeper agent (TypeScript + NEAR AI)? | Dibagi dua setelah P0 masing-masing selesai, atau Bayu karena sama-sama TypeScript. Keputusan tim |
+| D1 | Siapa membangun keeper agent (TypeScript + NEAR AI)? | **Diputuskan 13 Nov: Razaqi** |
 | D2 | Setuju dengan batas MVP §0.1? | — |
 | D3 | Persona utama untuk pitch | P1 (operator protokol liquid staking) |
 | D4 | Framework web | Vite + React + TypeScript (situs statis). Keputusan Bayu |
-| D5 | Hosting dashboard dan mesin keeper | Belum dipilih |
+| D5 | Hosting dashboard dan mesin keeper | **Keeper: diputuskan 13 Nov, Railway** (Root Directory `keeper`, satu repo). Dashboard: belum dipilih |
 | D6 | Angka: fee protokol, `min_keeper_stake`, batas bawah jaminan commit, `stake_multiplier` | Default usulan di SMART_CONTRACT_SPEC §3 |
 | D7 | Model AI untuk keeper | Pilih dari `/v1/models` setelah latensi diukur; kandidat termurah: `z-ai/glm-5.3-flash`, `openai/gpt-6-luna` |
 | D8 | Apakah memberi tahu tim LiNEAR sebelum memakai kontrak testnet mereka untuk demo | Keputusan tim |

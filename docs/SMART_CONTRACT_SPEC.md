@@ -5,10 +5,11 @@
 | Versi | v1 (draf), 13 Nov 2026 |
 | Pemilik | Razaqi |
 | Jaringan | NEAR testnet |
-| Bahasa / SDK | Rust, near-sdk 5.x (terbaru di crates.io per 13 Nov: 5.30.1), build dengan cargo-near (0.23.0), test dengan near-workspaces (0.24.0) |
+| Bahasa / SDK | Rust, near-sdk 5.30.1 (terbaru di crates.io per 13 Nov), build dengan cargo-near (0.23.0). Test: `cargo test` untuk unit test, `near-sandbox` + `near-api` untuk integration test (cara yang disebut docs NEAR) |
 | Terkait | [PRD.md](PRD.md), [FRONTEND_SPEC.md](FRONTEND_SPEC.md) |
+| Agent skills | `near-smart-contracts`, `near-contract-audit`, `near-cli-rs` (terpasang di proyek lewat `npx skills add near/agent-skills`) |
 
-Seluruh isi dokumen ini adalah **rancangan** kecuali yang ditandai **Fakta**. Nama tipe dan fungsi SDK mengikuti near-sdk 5.x. Sebelum implementasi, cek ulang nama API yang ditandai ⚠ di [docs.rs/near-sdk](https://docs.rs/near-sdk/latest/near_sdk/).
+Seluruh isi dokumen ini adalah **rancangan** kecuali yang ditandai **Fakta**. Nama API near-sdk di dokumen ini sudah dicek di docs.rs near-sdk 5.30.1 dan docs.near.org pada 13 Nov 2026 (lihat §1).
 
 ---
 
@@ -26,6 +27,10 @@ Seluruh isi dokumen ini adalah **rancangan** kecuali yang ditandai **Fakta**. Na
 | LiNEAR `epoch_update_rewards(validator_id)` mensyaratkan prepaid gas ≥ 75 + 25 + 25 = 125 Tgas | [epoch_actions.rs](https://github.com/linear-protocol/LiNEAR/blob/main/contracts/linear/src/epoch_actions.rs), [types.rs](https://github.com/linear-protocol/LiNEAR/blob/main/contracts/linear/src/types.rs) | Gas job demo ≥ 125 Tgas |
 | LiNEAR `epoch_stake` mengembalikan `bool` (`false` = "There is no need to call this function again in this epoch") | epoch_actions.rs | Aturan sukses `ReturnsTrue` |
 | Staking pool `ping` tidak mengembalikan nilai; berhenti tanpa efek kalau epoch belum berganti | [core-contracts](https://github.com/near/core-contracts/tree/master/staking-pool) | Job `EveryEpoch` dibayar maks sekali per epoch |
+| Function-call key "do **not allow** to **attach NEAR tokens** to the call"; dibatasi `receiver_id` (satu kontrak), `method_names` opsional, `allowance` opsional (kalau dihilangkan: gas tak terbatas). "If an account has only function-call keys and their allowance runs out, the account cannot sign any more transactions." "The allowance of an existing key cannot be changed." | [docs access keys](https://docs.near.org/protocol/accounts-contracts/access-keys) | Semua method yang dipanggil keeper agent harus **tanpa attached deposit**, supaya keeper di Railway cukup memegang function-call key. Jaminan commit diambil dari stake, bukan dari deposit (§4.4) |
+| `env::promise_result_checked(result_idx: u64, max_len: usize) -> Result<Vec<u8>, PromiseError>`; `env::promise_result` ditandai deprecated ("use `promise_result_checked` to prevent out-of-gas errors"). Halaman docs.rs-nya menyebut error `PromiseResultError::TooLong(len)`, tidak sama dengan tipe di signature | [promise_result_checked](https://docs.rs/near-sdk/5.30.1/near_sdk/env/fn.promise_result_checked.html), [promise_result](https://docs.rs/near-sdk/5.30.1/near_sdk/env/fn.promise_result.html) | Callback membaca hasil mentah dengan `promise_result_checked` (§5.4); tipe error dicek saat kompilasi |
+| `Gas::from_tgas` ada (re-export near-gas 0.3.7); `NearToken` ada; `LookupMap`, `IterableMap`, `IterableSet` ada di `near_sdk::store` (`IterableMap`/`IterableSet` menggantikan `UnorderedMap`/`UnorderedSet` yang deprecated) | [docs.rs near-sdk 5.30.1](https://docs.rs/near-sdk/5.30.1/near_sdk/store/index.html) | Dipakai di §2 |
+| Event NEP-297: "log entries that start with the `EVENT_JSON:` prefix followed by a single valid JSON string" dengan field `standard`, `version`, `event`, `data` (opsional). Di Rust: `#[near(event_json(standard = "..."))]` + `#[event_version("1.0.0")]`, lalu `.emit()` | [NEP-297](https://github.com/near/NEPs/blob/master/neps/nep-0297.md), [docs events](https://docs.near.org/smart-contracts/anatomy/events) | §7 |
 
 ---
 
@@ -52,7 +57,7 @@ pub struct Config {
     pub protocol_fee_bps: u16,       // usulan 500 (5%)
     pub min_keeper_stake: U128,      // usulan 1 NEAR (keputusan tim, D6)
     pub stake_multiplier: u8,        // usulan 10
-    pub min_commit_bond: U128,       // usulan 0.1 NEAR (keputusan tim, D6)
+    pub min_commit_bond: U128,       // usulan 0.1 NEAR (keputusan tim, D6); dikunci dari stake bebas, bukan deposit
     pub commit_blocks: u64,          // usulan 50 (~29 detik pada ~0,58 detik/blok)
     pub reveal_blocks: u64,          // usulan 50
     pub grace_blocks: u64,           // usulan 50: panjang jendela eksklusif pemenang
@@ -66,8 +71,8 @@ pub struct Config {
 
 pub struct Keeper {
     pub stake: u128,
-    pub locked: u128,                // stake yang dikunci untuk putaran yang dimenangkan
-    pub rewards: u128,               // reward + jaminan yang dikembalikan, bisa ditarik
+    pub locked: u128,                // stake yang dikunci: jaminan commit yang belum di-reveal + kunci putaran yang dimenangkan
+    pub rewards: u128,               // reward yang bisa ditarik
     pub executed: u64,
     pub slashed: u64,
     pub registered_at: u64,          // block height
@@ -134,7 +139,7 @@ pub struct Mashpit {
 }
 ```
 
-⚠ Nama koleksi (`LookupMap`, `IterableMap`, `IterableSet`) mengikuti modul `near_sdk::store` di near-sdk 5.x; cek di docs.rs.
+Koleksi `LookupMap`, `IterableMap`, dan `IterableSet` berasal dari `near_sdk::store` (fakta, §1). `LookupMap` tidak bisa diiterasi, karena itu `keeper_ids` disimpan terpisah.
 
 ---
 
@@ -154,7 +159,13 @@ pub struct Mashpit {
 
 ## 4. Method
 
-Notasi: **payable** = menerima attached deposit; **owner** = hanya `config.owner_id`; **private** = hanya kontrak sendiri.
+Notasi: **payable** = menerima attached deposit; **owner** = hanya `config.owner_id`; **private** = hanya kontrak sendiri; **FC** = bisa dipanggil dengan function-call key (tidak butuh attached deposit).
+
+Pembagian kunci keeper (rancangan, berdasarkan fakta function-call key di §1):
+
+- **Full-access key** (disimpan lokal, tidak di Railway): `register_keeper`, `add_stake` (keduanya payable), `unregister_keeper`.
+- **Function-call key** di Railway: `receiver_id` = kontrak `mashpit`; `method_names` = `commit_bid`, `reveal_bid`, `finalize_round`, `poke`, `execute`, `slash_missed`, `withdraw_rewards`. Kalau key ini bocor, penyerang hanya bisa memanggil method tersebut atas nama keeper; dana keluar hanya ke akun keeper itu sendiri.
+- `allowance`: dihilangkan (gas tak terbatas) atau diisi cukup besar. Allowance tidak bisa diubah setelah key dibuat, dan kalau habis, akun yang hanya punya function-call key tidak bisa menandatangani lagi (fakta).
 
 ### 4.1 Inisialisasi & admin
 
@@ -168,11 +179,11 @@ Notasi: **payable** = menerima attached deposit; **owner** = hanya `config.owner
 
 | Method | Akses | Perilaku | Error |
 | --- | --- | --- | --- |
-| `register_keeper()` | payable | Daftarkan `predecessor` dengan `stake = attached` | `AlreadyRegistered`, `StakeTooLow` |
-| `add_stake()` | payable | `stake += attached` | `NotKeeper` |
+| `register_keeper()` | payable (full-access key) | Daftarkan `predecessor` dengan `stake = attached` | `AlreadyRegistered`, `StakeTooLow` |
+| `add_stake()` | payable (full-access key) | `stake += attached` | `NotKeeper` |
 | `withdraw_stake(amount: U128)` | keeper | Hanya stake bebas (`stake − locked`); transfer ke keeper | `InsufficientFreeStake` |
-| `withdraw_rewards()` | keeper | Transfer `rewards`, set 0 | `NothingToWithdraw` |
-| `unregister_keeper()` | keeper | Syarat `locked == 0`; kembalikan `stake + rewards`, hapus keeper | `StakeLocked` |
+| `withdraw_rewards()` | keeper, FC | Transfer `rewards`, set 0 | `NothingToWithdraw` |
+| `unregister_keeper()` | keeper (full-access key) | Syarat `locked == 0`; kembalikan `stake + rewards`, hapus keeper | `StakeLocked` |
 
 ### 4.3 Job
 
@@ -197,11 +208,11 @@ Validasi `register_job`:
 
 | Method | Akses | Perilaku | Error |
 | --- | --- | --- | --- |
-| `commit_bid(job_id, hash: Base64VecU8)` | payable, keeper | Syarat: fase Commit (`block < commit_end`); job `Active`; satu commit per keeper; `commits.len() < max_commits_per_round`; `attached ≥ max(min_commit_bond, max_reward)` (jadi jaminan); stake bebas ≥ `stake_multiplier × max_reward`; hash 32 byte | `WrongPhase`, `AlreadyCommitted`, `TooManyCommits`, `BondTooLow`, `InsufficientFreeStake` |
-| `reveal_bid(job_id, bid: U128, salt: String, memo: Option<String>)` | keeper | Syarat: fase Reveal (`commit_end ≤ block < reveal_end`); `sha256("{bid}:{salt}:{keeper}") == hash`; `bid ≤ max_reward`; `memo` ≤ `max_memo_bytes`. Jaminan dikreditkan ke `rewards` keeper | `WrongPhase`, `NoCommit`, `HashMismatch`, `BidAboveMax`, `MemoTooLong` |
-| `finalize_round(job_id)` | siapa saja | Syarat: `block ≥ reveal_end`, belum `finalized`. Tentukan pemenang (§5.2) dari reveal yang stake bebasnya masih cukup; kunci `stake_multiplier × max_reward` dari stake pemenang. Jaminan keeper yang tidak reveal masuk ke `job.balance`. Tanpa pemenang → `open_mode = true` | `WrongPhase`, `AlreadyFinalized` |
+| `commit_bid(job_id, hash: Base64VecU8)` | keeper, FC (tanpa deposit) | Syarat: fase Commit (`block < commit_end`); job `Active`; satu commit per keeper; `commits.len() < max_commits_per_round`; hash 32 byte. Jaminan `bond = max(min_commit_bond, max_reward)` **dikunci dari stake bebas** (`locked += bond`); setelah itu stake bebas harus tetap ≥ `stake_multiplier × max_reward` | `WrongPhase`, `AlreadyCommitted`, `TooManyCommits`, `InsufficientFreeStake` |
+| `reveal_bid(job_id, bid: U128, salt: String, memo: Option<String>)` | keeper, FC | Syarat: fase Reveal (`commit_end ≤ block < reveal_end`); `sha256("{bid}:{salt}:{keeper}") == hash`; `bid ≤ max_reward`; `memo` ≤ `max_memo_bytes`. Jaminan dilepas (`locked −= bond`) | `WrongPhase`, `NoCommit`, `HashMismatch`, `BidAboveMax`, `MemoTooLong` |
+| `finalize_round(job_id)` | siapa saja, FC | Syarat: `block ≥ reveal_end`, belum `finalized`. Keeper yang tidak reveal: jaminan dipotong dari stake (`stake −= bond`, `locked −= bond`) dan masuk ke `job.balance`. Tentukan pemenang (§5.2) dari reveal yang stake bebasnya masih cukup; kunci `stake_multiplier × max_reward` dari stake pemenang. Tanpa pemenang → `open_mode = true` | `WrongPhase`, `AlreadyFinalized` |
 
-Format hash commit: `sha256(utf8("{bid_yocto}:{salt}:{keeper_account_id}"))`, dengan `bid_yocto` sebagai string desimal dan `salt` string hex 64 karakter. Keeper agent menghitung hal yang sama (FRONTEND_SPEC tidak terlibat).
+Format hash commit: `sha256(utf8("{bid_yocto}:{salt}:{keeper_account_id}"))`, dengan `bid_yocto` sebagai string desimal dan `salt` string hex 64 karakter. Keeper agent menghitung hal yang sama (FRONTEND_SPEC tidak terlibat). Salt diturunkan secara deterministik oleh keeper (PRD FR-K4), jadi kontrak tidak perlu tahu cara pembuatannya.
 
 `execute` dan `poke` memanggil `finalize_round` secara internal kalau belum dilakukan.
 
@@ -209,10 +220,10 @@ Format hash commit: `sha256(utf8("{bid_yocto}:{salt}:{keeper_account_id}"))`, de
 
 | Method | Akses | Perilaku | Error |
 | --- | --- | --- | --- |
-| `poke(job_id)` | siapa saja | Kalau job jatuh tempo dan `due_seen_block` kosong: set `due_seen_block = block_height`. Memulai jendela eksklusif pemenang | `NotDue` |
-| `execute(job_id) -> Promise` | keeper | Lihat §5.3 | `NotDue`, `NotAuthorized`, `ExecutionInFlight`, `InsufficientJobBalance`, `NotEnoughGas`, `JobNotActive` |
+| `poke(job_id)` | siapa saja, FC | Kalau job jatuh tempo dan `due_seen_block` kosong: set `due_seen_block = block_height`. Memulai jendela eksklusif pemenang | `NotDue` |
+| `execute(job_id) -> Promise` | keeper, FC | Lihat §5.3 | `NotDue`, `NotAuthorized`, `ExecutionInFlight`, `InsufficientJobBalance`, `NotEnoughGas`, `JobNotActive` |
 | `on_executed(job_id, round_id)` | private (callback) | Lihat §5.4. **Tidak boleh panic** | — |
-| `slash_missed(job_id)` (P1) | siapa saja | Lihat §5.5 | `NoWinner`, `WindowNotOver`, `ExecutionInFlight`, `AlreadyOpen` |
+| `slash_missed(job_id)` (P1) | siapa saja, FC | Lihat §5.5 | `NoWinner`, `WindowNotOver`, `ExecutionInFlight`, `AlreadyOpen` |
 
 ### 4.6 View
 
@@ -282,7 +293,7 @@ return Promise::new(target)
 
 ### 5.4 `on_executed(job_id, round_id)` (callback)
 
-Hasil dibaca sebagai byte mentah supaya bisa menangani target yang mengembalikan nilai maupun tidak. ⚠ Pakai `env::promise_result(0)` / varian yang tersedia di near-sdk 5.30.1; cek nama dan tipenya di docs.rs. `#[callback_result]` dengan tipe `bool` akan gagal untuk target yang tidak mengembalikan nilai.
+Hasil dibaca sebagai byte mentah dengan `env::promise_result_checked(0, MAX_RESULT_LEN)` (fakta §1; `promise_result` deprecated), supaya bisa menangani target yang mengembalikan nilai maupun tidak. `MAX_RESULT_LEN` cukup kecil (usulan 64 byte), karena yang dibutuhkan hanya membedakan `true`/`false`/kosong. Hasil yang lebih panjang dari batas itu dianggap `Successful` untuk aturan `Any`, dan bukan `true` untuk aturan `ReturnsTrue`. Perilaku `#[callback_result]` untuk target tanpa nilai kembalian tidak ditemukan di docs (halaman docs.rs-nya 404), jadi tidak dipakai.
 
 ```
 kalau job/round tidak cocok (round_id berbeda): log dan return (jangan panic)
@@ -354,7 +365,7 @@ Format panic: `"Mashpit: <Kode>: <detail>"`, supaya mudah dibaca di explorer dan
 
 ## 7. Event (P1)
 
-Log JSON per kejadian, dengan awalan `EVENT_JSON:`. ⚠ Verifikasi format standar event (NEP-297) di [repo NEPs](https://github.com/near/NEPs) sebelum implementasi.
+Mengikuti NEP-297 (fakta §1): satu baris log `EVENT_JSON:` + JSON dengan `standard: "mashpit"`, `version: "1.0.0"`, `event`, dan `data`. Di Rust: enum event dengan `#[near(event_json(standard = "mashpit"))]`, setiap varian `#[event_version("1.0.0")]`, lalu `.emit()`.
 
 | Event | Data |
 | --- | --- |
@@ -385,7 +396,8 @@ Dashboard MVP membaca view method, bukan event, supaya tidak butuh indexer.
 | Ancaman | Mitigasi (rancangan) |
 | --- | --- |
 | Keeper menyalin tawaran keeper lain | Commit-reveal; hash memuat nama akun keeper, jadi hash tidak bisa dipakai ulang akun lain |
-| Commit palsu untuk mengacaukan lelang | Jaminan ≥ `max(min_commit_bond, max_reward)`, hangus kalau tidak reveal |
+| Commit palsu untuk mengacaukan lelang | Jaminan ≥ `max(min_commit_bond, max_reward)` dikunci dari stake, hangus kalau tidak reveal |
+| Kunci keeper di Railway bocor | Railway hanya memegang function-call key ke kontrak `mashpit` dengan `method_names` terbatas; key ini tidak bisa mentransfer NEAR atau menambah key (fakta §1). Full-access key tidak pernah disimpan di server |
 | Pemenang tidak mengeksekusi | Jendela eksklusif terbatas + `slash_missed` + mode terbuka |
 | Eksekusi ganda | `in_flight` mencegah `execute` paralel; `last_paid_epoch` mencegah bayar dua kali per epoch |
 | Callback dipanggil pihak luar | `#[private]` |
@@ -398,9 +410,11 @@ Dashboard MVP membaca view method, bukan event, supaya tidak butuh indexer.
 
 ## 10. Pengujian
 
-**Unit test** (dalam crate): perhitungan fase; hash commit; aturan seri; perhitungan fee; `is_due` untuk kedua jadwal; batas pembayaran sekali per epoch; validasi `register_job`.
+Cara menurut docs NEAR (fakta): `cargo test` menjalankan unit test dan sandbox test sekaligus ("`cargo test` runs both unit and sandbox tests present in the project"). Unit test memakai dev-dependency `near-sdk` dengan feature `unit-testing`. Integration test memakai `near-sandbox` (node NEAR lokal) dan `near-api` (membuat akun, deploy, memanggil kontrak). Sumber: [unit test](https://docs.near.org/smart-contracts/testing/unit-test), [integration test](https://docs.near.org/smart-contracts/testing/integration-test).
 
-**Integration test** (near-workspaces), dengan kontrak `mock_target`:
+**Unit test** (dalam crate): perhitungan fase; hash commit; aturan seri; perhitungan fee; `is_due` untuk kedua jadwal; batas pembayaran sekali per epoch; validasi `register_job`; penguncian dan pelepasan jaminan commit.
+
+**Integration test** (`near-sandbox` + `near-api`), dengan kontrak `mock_target`:
 
 | Method `mock_target` | Perilaku |
 | --- | --- |
@@ -417,6 +431,7 @@ Dashboard MVP membaca view method, bukan event, supaya tidak butuh indexer.
 | `EveryEpoch` tidak dibayar dua kali dalam satu epoch | AC-6 |
 | Pemenang diam → `slash_missed` → mode terbuka → keeper lain sukses | AC-7 |
 | Ukur gas `execute` + `on_executed` untuk menyetel `callback_gas_tgas`/`overhead_gas_tgas` | NFR-1 |
+| Keeper dengan function-call key bisa commit, reveal, finalize, dan execute; panggilan `register_keeper` dengan function-call key ditolak | Pembagian kunci (§4) |
 
 ---
 
@@ -427,13 +442,15 @@ Perintah build dari docs NEAR (fakta): `cargo near build non-reproducible-wasm`.
 `scripts/deploy.sh` (rancangan):
 
 1. `cargo near build non-reproducible-wasm` di `contracts/mashpit`.
-2. Buat akun kontrak di testnet (misalnya `mashpit.<akun-tim>.testnet`), isi saldo dari faucet (Q-008).
-3. Deploy wasm, lalu panggil `new(owner_id, treasury_id, null)`.
+2. Buat akun tim di testnet dengan faucet: `near create-account <akun>.testnet --useFaucet` (fakta, [docs create account](https://docs.near.org/getting-started/create-account)). Faucet web juga tersedia di near-faucet.io (disebut di [nearbuilders.org/build](https://nearbuilders.org/build)).
+3. Buat sub-account kontrak (misalnya `mashpit.<akun>.testnet`), deploy wasm, lalu panggil `new(owner_id, treasury_id, null)`.
 4. Simpan `CONTRACT_ID` di `.env` tiap paket (tidak di-commit).
 
-`scripts/create-keepers.sh`: buat `k1`, `k2`, `k3` sebagai sub-account, lalu panggil `register_keeper` dengan stake.
+Docs yang dibaca tidak menunjukkan perintah CLI untuk membuat sub-account; yang terdokumentasi adalah `account.createSubAccount({ accountOrPrefix, publicKey, nearToTransfer })` di near-api-js ([docs near-api](https://docs.near.org/tools/near-api)). Karena itu pembuatan sub-account ditulis sebagai skrip Node, atau dibantu skill `near-cli-rs`. "Parent accounts have no control over their sub-accounts" (fakta), jadi kunci setiap sub-account harus disimpan.
 
-`scripts/seed-jobs.sh` (job demo):
+`scripts/create-keepers` (Node, rancangan): buat `k1`, `k2`, `k3` sebagai sub-account; panggil `register_keeper` dengan stake memakai full-access key; tambahkan function-call key ke kontrak `mashpit` dengan `method_names` di §4; function-call key inilah yang dipasang sebagai sealed variable di Railway.
+
+`scripts/seed-jobs.mjs` (job demo):
 
 | Job | Target | Method & args | Gas | Jadwal | Aturan |
 | --- | --- | --- | --- | --- | --- |
@@ -451,4 +468,5 @@ Validator `aurora.pool.f863973.m0` adalah salah satu dari 5 validator LiNEAR tes
 - [ ] Apakah keeper yang gagal (target panic) boleh mencoba ulang tanpa batas dalam jendela eksklusifnya?
 - [ ] Rumus `min_gas` lengkap untuk `epoch_stake` / `epoch_unstake` LiNEAR.
 - [ ] Ukuran storage per job, commit, reveal, dan riwayat (diukur di test).
-- [ ] Nama API near-sdk yang ditandai ⚠.
+- [ ] Cara menambahkan function-call key dengan `method_names` lewat CLI belum ditemukan di docs yang dibaca (contoh CLI `add-key` hanya menunjukkan mode lain). Cek skill `near-cli-rs` atau API near-api-js.
+- [ ] Tipe error `promise_result_checked` (`PromiseError` di signature vs `PromiseResultError::TooLong` di teks docs) dipastikan saat kompilasi.
