@@ -298,14 +298,12 @@ impl Mashpit {
 
     /// Release the winner's stake lock without penalty. Never panics.
     pub(crate) fn release_winner_lock(&mut self, job: &mut Job) {
-        if let Some(w) = job.round.winner.as_mut() {
-            if !w.settled {
-                if let Some(mut k) = self.keepers.get(&w.keeper).cloned() {
-                    k.locked = U128(k.locked.0.saturating_sub(w.locked.0));
-                    self.save_keeper(&w.keeper, k);
-                }
-                w.settled = true;
+        if let Some(w) = job.round.winner.as_mut().filter(|w| !w.settled) {
+            if let Some(mut k) = self.keepers.get(&w.keeper).cloned() {
+                k.locked = U128(k.locked.0.saturating_sub(w.locked.0));
+                self.save_keeper(&w.keeper, k);
             }
+            w.settled = true;
         }
     }
 
