@@ -57,7 +57,9 @@ fn default_config(owner_id: AccountId, treasury_id: AccountId) -> Config {
         max_memo_bytes: 280,
         callback_gas_tgas: 20,
         overhead_gas_tgas: 15,
-        max_total_gas_tgas: 300,
+        // Testnet protocol 88 allows 1,000 Tgas of prepaid gas (EXPERIMENTAL_protocol_config,
+        // 14 Nov 2026). 400 leaves room for LiNEAR's epoch_stake, which needs 275 Tgas.
+        max_total_gas_tgas: 400,
     }
 }
 

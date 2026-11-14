@@ -80,6 +80,7 @@ fn defaults_match_spec() {
     assert_eq!(cfg.min_keeper_stake.0, NEAR);
     assert_eq!(cfg.min_commit_bond.0, NEAR / 10);
     assert_eq!((cfg.commit_blocks, cfg.reveal_blocks, cfg.grace_blocks), (100, 100, 150));
+    assert_eq!(cfg.max_total_gas_tgas, 400);
 }
 
 #[test]
@@ -105,7 +106,7 @@ fn register_job_charges_storage() {
 fn register_job_rejects_too_much_gas() {
     let mut c = setup();
     let mut input = job_input(NEAR / 10);
-    input.gas_tgas = 280;
+    input.gas_tgas = 380; // 380 + 20 callback + 15 overhead > 400
     ctx("owner.testnet", 100, 2 * NEAR);
     c.register_job(input);
 }
