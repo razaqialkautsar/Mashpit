@@ -325,6 +325,21 @@ async function tick(): Promise<number> {
   return Math.max(cfg.pollMs, idle);
 }
 
+// ---------- Contract config ----------
+// The owner can change the config (windows, gas cap, fee) at any time, so re-read it every few
+// minutes instead of only at start-up. A stale gas cap made executes fail with NotEnoughGas.
+
+let configReadAt = 0;
+async function refreshConfig() {
+  if (Date.now() - configReadAt < 5 * 60_000) return;
+  const next = (await mp.config()) as typeof contractConfig;
+  if (contractConfig && next.max_total_gas_tgas !== contractConfig.max_total_gas_tgas) {
+    log(`contract gas cap changed: ${contractConfig.max_total_gas_tgas} -> ${next.max_total_gas_tgas} Tgas`);
+  }
+  contractConfig = next;
+  configReadAt = Date.now();
+}
+
 // ---------- Funds ----------
 // Gas comes from the keeper account. Withdraw earned rewards when the balance runs low; stop
 // committing when it is critically low, so a commit is never left without gas to reveal it.
@@ -349,7 +364,7 @@ async function checkFunds() {
 }
 
 async function main() {
-  contractConfig = (await mp.config()) as typeof contractConfig;
+  await refreshConfig();
   const keeper = await mp.keeper();
   if (!keeper) throw new Error(`${me} is not a registered keeper on ${cfg.contractId}`);
   log(
@@ -363,6 +378,7 @@ async function main() {
   for (;;) {
     let wait = cfg.pollMs;
     try {
+      await refreshConfig();
       await checkFunds();
       wait = await tick();
     } catch (err) {
