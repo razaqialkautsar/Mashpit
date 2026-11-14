@@ -211,10 +211,7 @@ function expectedWinner(job: JobView): string | null {
 
 async function execute(job: JobView, why: string) {
   if (cfg.skipExecute) {
-    if (shouldTry(`skip:${job.id}:${job.round.round_id}`, job.current_block)) {
-      log(`job ${job.id}: KEEPER_SKIP_EXECUTE is on, not executing (${why})`);
-    }
-    return;
+    return logOnce(`skip:${job.id}:${job.round.round_id}`, `job ${job.id} round ${job.round.round_id}: KEEPER_SKIP_EXECUTE is on, not executing (${why})`);
   }
   if (!shouldTry(`execute:${job.id}:${job.round.round_id}`, job.current_block)) return;
   // A failed call keeps the job due. Back off, and give the round up after repeated failures.
