@@ -29,6 +29,7 @@ let lowFunds = false; // set by checkFunds: no new commits while the balance is 
 const noted = new Set<string>(); // log-once keys
 
 const RETRY_BLOCKS = 5;
+const OPEN_JITTER_MS = Number(process.env.OPEN_JITTER_MS ?? 4000);
 const log = (msg: string) => console.log(`${new Date().toISOString()} [${me}] ${msg}`);
 const near = (y: bigint | string) => (Number(BigInt(y)) / 1e24).toFixed(4);
 const logOnce = (key: string, msg: string) => {
@@ -211,10 +212,7 @@ function expectedWinner(job: JobView): string | null {
 
 async function execute(job: JobView, why: string) {
   if (cfg.skipExecute) {
-    if (shouldTry(`skip:${job.id}:${job.round.round_id}`, job.current_block)) {
-      log(`job ${job.id}: KEEPER_SKIP_EXECUTE is on, not executing (${why})`);
-    }
-    return;
+    return logOnce(`skip:${job.id}:${job.round.round_id}`, `job ${job.id} round ${job.round.round_id}: KEEPER_SKIP_EXECUTE is on, not executing (${why})`);
   }
   if (!shouldTry(`execute:${job.id}:${job.round.round_id}`, job.current_block)) return;
   // A failed call keeps the job due. Back off, and give the round up after repeated failures.
@@ -226,11 +224,30 @@ async function execute(job: JobView, why: string) {
   if (job.current_block < next) {
     return logOnce(`backoff:${job.id}:${job.round.round_id}:${failures.count}`, `job ${job.id}: target failed ${failures.count}x, retrying from block ${next}`);
   }
+  // In an open round every keeper may execute, so they all fire on the same block and all but
+  // one pay gas for a rejected call. Wait a random moment, then re-read the job and stand down
+  // if another keeper is already on it.
+  if (why !== "winner" && why !== "exclusive window") {
+    await new Promise((r) => setTimeout(r, Math.random() * OPEN_JITTER_MS));
+    const fresh = await mp.job(job.id);
+    if (!fresh || fresh.round.round_id !== job.round.round_id || fresh.round.in_flight || !fresh.is_due) {
+      return log(`job ${job.id} round ${job.round.round_id}: another keeper got there first, standing down`);
+    }
+  }
   const gas = Math.min(
     contractConfig.max_total_gas_tgas,
     job.gas_tgas + contractConfig.callback_gas_tgas + contractConfig.overhead_gas_tgas + 10,
   );
   await send(`execute job ${job.id} round ${job.round.round_id} (${why})`, "execute", { job_id: job.id }, gas);
+}
+
+/** A paused job gets no bids and no runs, but this keeper still reveals a bid it committed. */
+async function revealWhilePaused(job: JobView) {
+  const r = job.round;
+  const mine = r.commits.find((c) => c.keeper === me);
+  if (mine && !mine.revealed && job.current_block >= r.commit_end && job.current_block < r.reveal_end) {
+    return handleReveal(job);
+  }
 }
 
 async function poke(job: JobView) {
@@ -242,6 +259,7 @@ async function poke(job: JobView) {
 
 async function handleJob(job: JobView) {
   trackRound(job);
+  if (job.status === "Paused") return revealWhilePaused(job);
   const r = job.round;
   const winner = r.winner && !r.winner.settled ? r.winner.keeper : null;
   // A drained job only gets this keeper's own obligations: its reveals and the runs it won.
@@ -287,7 +305,9 @@ let jobList: { ids: number[]; at: number } | null = null;
 async function activeJobIds(): Promise<number[]> {
   if (!jobList || Date.now() - jobList.at > JOB_LIST_TTL_MS) {
     const all = await mp.listJobs();
-    jobList = { ids: all.filter((s) => s.status === "Active").map((s) => s.id), at: Date.now() };
+    // Paused jobs stay watched: the contract still accepts reveals, and an unrevealed commit
+    // loses its bond when the round is finalized.
+    jobList = { ids: all.filter((s) => s.status === "Active" || s.status === "Paused").map((s) => s.id), at: Date.now() };
   }
   return jobList.ids;
 }
@@ -310,6 +330,9 @@ function idleFor(job: JobView): number {
     case "Exclusive":
     case "InFlight":
       return 0;
+    case "Paused":
+      // Wake up for the reveal window if this keeper has a bid to reveal.
+      return mine && !mine.revealed && job.current_block < r.reveal_end ? until(r.commit_end) : IDLE_MS;
     default:
       return IDLE_MS;
   }
