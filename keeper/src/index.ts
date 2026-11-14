@@ -241,6 +241,15 @@ async function execute(job: JobView, why: string) {
   await send(`execute job ${job.id} round ${job.round.round_id} (${why})`, "execute", { job_id: job.id }, gas);
 }
 
+/** A paused job gets no bids and no runs, but this keeper still reveals a bid it committed. */
+async function revealWhilePaused(job: JobView) {
+  const r = job.round;
+  const mine = r.commits.find((c) => c.keeper === me);
+  if (mine && !mine.revealed && job.current_block >= r.commit_end && job.current_block < r.reveal_end) {
+    return handleReveal(job);
+  }
+}
+
 async function poke(job: JobView) {
   // Only EveryEpoch jobs need it: their due block is unknown until a call observes the epoch.
   if (job.schedule !== "EveryEpoch" || job.round.due_seen_block !== null) return;
@@ -250,6 +259,7 @@ async function poke(job: JobView) {
 
 async function handleJob(job: JobView) {
   trackRound(job);
+  if (job.status === "Paused") return revealWhilePaused(job);
   const r = job.round;
   const winner = r.winner && !r.winner.settled ? r.winner.keeper : null;
   // A drained job only gets this keeper's own obligations: its reveals and the runs it won.
@@ -295,7 +305,9 @@ let jobList: { ids: number[]; at: number } | null = null;
 async function activeJobIds(): Promise<number[]> {
   if (!jobList || Date.now() - jobList.at > JOB_LIST_TTL_MS) {
     const all = await mp.listJobs();
-    jobList = { ids: all.filter((s) => s.status === "Active").map((s) => s.id), at: Date.now() };
+    // Paused jobs stay watched: the contract still accepts reveals, and an unrevealed commit
+    // loses its bond when the round is finalized.
+    jobList = { ids: all.filter((s) => s.status === "Active" || s.status === "Paused").map((s) => s.id), at: Date.now() };
   }
   return jobList.ids;
 }
@@ -318,6 +330,9 @@ function idleFor(job: JobView): number {
     case "Exclusive":
     case "InFlight":
       return 0;
+    case "Paused":
+      // Wake up for the reveal window if this keeper has a bid to reveal.
+      return mine && !mine.revealed && job.current_block < r.reveal_end ? until(r.commit_end) : IDLE_MS;
     default:
       return IDLE_MS;
   }
