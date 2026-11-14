@@ -61,7 +61,8 @@ To run several keepers on one machine, give each its own env file (`.env.k1`, `.
 | `POLL_MS` / `IDLE_POLL_MS` | | `3000` / `20000` | Poll interval when an action is near / when every job is idle |
 | `NEAR_AI_API_KEY`, `NEAR_AI_MODEL` | | empty | Both set: bids come from the model. Otherwise the deterministic rule is used |
 | `NEAR_AI_BASE_URL` | | `https://cloud-api.near.ai/v1` | OpenAI-compatible endpoint |
-| `NEAR_AI_TIMEOUT_MS` | | `8000` | After this the keeper falls back to the rule |
+| `NEAR_AI_TIMEOUT_MS` | | `15000` | After this the keeper falls back to the rule |
+| `AI_CACHE_MS` | | `1800000` | Reuse the last AI decision for a job while the market is unchanged, up to this age |
 | `EST_COMMIT_TGAS` / `EST_REVEAL_TGAS` / `EST_EXECUTE_TGAS` | | `3` / `3` / `20` | Gas burnt per step, used to estimate cost |
 
 ## How it bids
@@ -81,6 +82,25 @@ percent, the stake it would lock, the job's recent executions and how the previo
 answers `{"participate", "bid_percent", "reason"}`. Invalid answers and timeouts fall back to the
 rule, and a bid below break-even is raised to break-even. The reason becomes the reveal memo, which
 the dashboard shows.
+
+The model is asked again only when the market changes (break-even, number of competitors, the
+previous winning bid, or the last outcome) or the cached answer is older than `AI_CACHE_MS`.
+Otherwise the last decision is reused and its memo is marked "(cached)".
+
+Model benchmark (14 Nov 2026, two calls per model through `aiDecision`, job 1 data, break-even 28%,
+previous winning bid 33%; cost = tokens used × the price listed at `/v1/models`):
+
+| Model | Valid | Latency | Bid balanced / aggressive | Cost per decision |
+| --- | --- | --- | --- | --- |
+| `openai/gpt-6-luna` | yes | 2.8–4.3 s | 32% / 29% | ~$0.00014 |
+| `anthropic/claude-haiku-5-5` | yes | 2.2–2.8 s | 31% / 29% | ~$0.00025 |
+| `google/gemini-2.5-flash-lite` | yes | 1.5–1.8 s | 30% / 34% (aggressive above the previous winner) | ~$0.00006 |
+| `deepseek/deepseek-v3.2` | yes | 8–9 s | 29% / 27% (below break-even, raised to 28%) | ~$0.00047 |
+| `openai/gpt-5-nano` | no (empty answer) | | | |
+| `z-ai/glm-5.3-flash` | no (timeout) | | | |
+
+Reasoning models can spend their whole token budget before answering. The keeper therefore sends
+no `temperature` (some models accept only their default) and allows up to 800 tokens.
 
 **Restart safety without stored state.** The salt is
 `HMAC-SHA256(KEEPER_SECRET, "{contract}:{job_id}:{round_id}")`. Bids are restricted to a 1% grid
