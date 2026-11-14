@@ -58,9 +58,9 @@ pub struct Config {
     pub min_keeper_stake: U128,      // usulan 1 NEAR (keputusan tim, D6)
     pub stake_multiplier: u8,        // usulan 10
     pub min_commit_bond: U128,       // usulan 0.1 NEAR (keputusan tim, D6); dikunci dari stake bebas, bukan deposit
-    pub commit_blocks: u64,          // usulan 50 (~29 detik pada ~0,58 detik/blok)
-    pub reveal_blocks: u64,          // usulan 50
-    pub grace_blocks: u64,           // usulan 50: panjang jendela eksklusif pemenang
+    pub commit_blocks: u64,          // 100 (~58 detik pada ~0,58 detik/blok); lihat §3
+    pub reveal_blocks: u64,          // 100
+    pub grace_blocks: u64,           // 150 (~87 detik): panjang jendela eksklusif pemenang
     pub max_commits_per_round: u8,   // usulan 10
     pub max_history: u8,             // usulan 20 entri per job
     pub max_memo_bytes: u16,         // usulan 280
@@ -78,9 +78,9 @@ pub struct Keeper {
     pub registered_at: u64,          // block height
 }
 
-pub struct Commit { pub keeper: AccountId, pub hash: [u8; 32], pub bond: u128, pub block: u64 }
+pub struct Commit { pub keeper: AccountId, pub hash: [u8; 32], pub bond: u128, pub block: u64, pub revealed: bool }
 pub struct Reveal { pub keeper: AccountId, pub bid: u128, pub commit_block: u64, pub memo: Option<String> }
-pub struct Winner { pub keeper: AccountId, pub bid: u128, pub locked: u128 }
+pub struct Winner { pub keeper: AccountId, pub bid: u128, pub locked: u128, pub settled: bool }  // settled: kunci sudah dilepas atau di-slash
 pub struct InFlight { pub executor: AccountId, pub pay: u128, pub started_block: u64 }
 
 pub struct Round {
@@ -97,11 +97,19 @@ pub struct Round {
     pub in_flight: Option<InFlight>,
 }
 
+pub enum Outcome {
+    Paid,           // panggilan sukses sesuai aturan; keeper dibayar
+    Failed,         // panggilan target gagal; tidak dibayar, job tetap jatuh tempo
+    ReturnedFalse,  // sukses tapi bukan `true` di bawah ReturnsTrue; tidak dibayar, putaran ditutup
+    Slashed,        // pemenang melewatkan jendela eksklusifnya dan di-slash; putaran pindah ke mode terbuka
+}
+
 pub struct ExecutionRecord {
     pub round_id: u64,
-    pub executor: AccountId,
-    pub paid: u128,                  // 0 kalau tidak dibayar
-    pub outcome: Outcome,            // Paid | Failed | ReturnedFalse
+    pub executor: AccountId,         // baris Slashed: keeper yang di-slash
+    pub paid: u128,                  // GROSS: jumlah yang diambil dari job.balance. Keeper menerima paid − fee
+                                     // (fee = paid × protocol_fee_bps / 10_000). 0 kalau tidak dibayar
+    pub outcome: Outcome,            // Paid | Failed | ReturnedFalse | Slashed
     pub due_block: Option<u64>,
     pub exec_block: u64,             // blok callback
     pub epoch: u64,
@@ -141,9 +149,16 @@ pub struct Mashpit {
 
 Koleksi `LookupMap`, `IterableMap`, dan `IterableSet` berasal dari `near_sdk::store` (fakta, §1). `LookupMap` tidak bisa diiterasi, karena itu `keeper_ids` disimpan terpisah.
 
+**Membaca riwayat (`get_history`).** Satu kejadian *failover* menghasilkan dua baris dengan `round_id` yang sama:
+
+1. `outcome: "Slashed"`, `paid: "0"`, `executor` = `slashed_keeper` = pemenang yang melewatkan jendelanya, `open_mode: true`. Jumlah yang dipotong dari stake-nya masuk ke `job.balance`.
+2. Baris eksekusi berikutnya (biasanya `Paid`) oleh keeper yang mengambil alih di mode terbuka, dengan bayaran `max_reward`.
+
+`paid` selalu bruto. Contoh: `paid` 0,01 NEAR dengan fee 5% berarti keeper menerima 0,0095 NEAR dan 0,0005 NEAR masuk `fees_accrued`. Di testnet, total `paid` 0,0908 NEAR × 5% = 0,00454 NEAR, sama dengan `fees_accrued` (dicek Bayu, 14 Nov).
+
 ---
 
-## 3. Parameter default (usulan, menunggu keputusan D6)
+## 3. Parameter default
 
 | Parameter | Default | Dasar |
 | --- | --- | --- |
@@ -151,7 +166,7 @@ Koleksi `LookupMap`, `IterableMap`, dan `IterableSet` berasal dari `near_sdk::st
 | `min_keeper_stake` | 1 NEAR | Usulan |
 | `stake_multiplier` | 10 | Stake bebas ≥ 10 × `max_reward` untuk ikut lelang |
 | `min_commit_bond` | 0.1 NEAR | Batas bawah supaya commit palsu tidak murah |
-| `commit_blocks` / `reveal_blocks` / `grace_blocks` | 50 / 50 / 50 | ~29 detik masing-masing pada waktu blok terukur ~0,58 detik; uji setelah latensi AI terukur |
+| `commit_blocks` / `reveal_blocks` / `grace_blocks` | 100 / 100 / 150 | ~58 / ~58 / ~87 detik pada waktu blok terukur ~0,58 detik. Awalnya 50 / 50 / 50, tapi di uji testnet 13 Nov jendela ~29 detik terlalu sempit: saat RPC publik membatasi request (HTTP 429), keeper jujur sempat gagal reveal dan gagal eksekusi tepat waktu. Kontrak testnet diubah lewat `set_config` pada 13 Nov (tx `DmZ2rnAaTSLNHHQN4A87sfVDg5ueQ1pXA1JpcWyVCAiA`), lalu default di kode disamakan. Putaran yang sudah dibuka sebelum perubahan tetap memakai 50 / 50 |
 | `callback_gas_tgas` / `overhead_gas_tgas` | 20 / 15 | Diukur dan disesuaikan di integration test |
 | `max_total_gas_tgas` | 300 | NFR-1 |
 
@@ -192,7 +207,7 @@ Pembagian kunci keeper (rancangan, berdasarkan fakta function-call key di §1):
 | `register_job(input: JobInput) -> u64` | payable | Validasi; `balance = attached − biaya storage` (storage diukur dari selisih `env::storage_usage()` × 1E19 yocto/byte); buka putaran #1; kembalikan `job_id` | lihat §6 |
 | `top_up(job_id)` | payable, siapa saja | `balance += attached` | `JobNotFound`, `JobClosed` |
 | `pause_job(job_id)` / `resume_job(job_id)` | pemilik job | Ubah status; job `Paused` tidak bisa di-`execute` | `NotJobOwner` |
-| `close_job(job_id)` | pemilik job | Syarat: tidak ada `in_flight`. Kunci stake pemenang dilepas. Transfer `balance` + storage yang dibebaskan ke pemilik; status `Closed` | `ExecutionInFlight` |
+| `close_job(job_id)` | pemilik job | Syarat: tidak ada `in_flight`. Kunci stake pemenang dan jaminan commit yang belum di-reveal dilepas tanpa penalti. **Job dihapus dari state** (bukan sekadar status `Closed`), lalu `balance` + storage yang dibebaskan dikirim ke pemilik. Setelahnya `get_job` mengembalikan `null` | `ExecutionInFlight` |
 
 `JobInput`: `target`, `method`, `args` (base64), `gas_tgas`, `schedule`, `success_rule`, `max_reward`.
 
@@ -231,9 +246,9 @@ Format hash commit: `sha256(utf8("{bid_yocto}:{salt}:{keeper_account_id}"))`, de
 | --- | --- |
 | `get_config()` | `Config` |
 | `get_stats()` | jumlah job, keeper, total stake, `fees_accrued`, `block_height`, `epoch_height` saat ini |
-| `get_job(job_id)` | `JobView`: semua field `Job` + `phase` terhitung (`Commit`, `Reveal`, `AwaitingFinalize`, `Awarded`, `Exclusive`, `Open`, `InFlight`) + `is_due` + `exclusive_until` |
+| `get_job(job_id)` | `JobView`: semua field `Job` kecuali `history` + `phase` terhitung (`Commit`, `Reveal`, `AwaitingFinalize`, `Awarded`, `Exclusive`, `Open`, `InFlight`, `Paused`, `Closed`) + `is_due` + `due_block` + `exclusive_until` + `current_block` + `current_epoch` |
 | `list_jobs(from_index, limit)` | `Vec<JobSummary>` (tanpa riwayat lengkap) |
-| `get_round(job_id)` | `Round` (commit hanya menampilkan keeper + blok + jaminan, bukan hash mentah) |
+| `get_round(job_id)` | `Round`; tiap commit menampilkan keeper, `hash` (base64), blok, jaminan, dan `revealed`. Hash ditampilkan supaya keeper yang restart di antara commit dan reveal bisa memulihkan tawarannya (ditambahkan 13 Nov, upgrade tanpa migrasi) |
 | `get_history(job_id)` | `Vec<ExecutionRecord>` |
 | `get_keeper(account_id)` | `Option<Keeper>` |
 | `list_keepers(from_index, limit)` | `Vec<(AccountId, Keeper)>` |
@@ -275,8 +290,10 @@ syarat umum:
   env::prepaid_gas() >= gas_tgas + callback_gas_tgas + overhead_gas_tgas
   predecessor adalah keeper terdaftar
 
-kalau due_seen_block kosong: set = block_height
-exclusive_until = due_block + grace_blocks
+EveryEpoch dan due_seen_block kosong: set = block_height
+exclusive_until = max(due_block, reveal_end) + grace_blocks
+
+pemenang melewatkan jendela (block_height > exclusive_until, belum settled): slash dulu (§5.5), open_mode = true
 
 otorisasi:
   winner ada && !open_mode && block_height <= exclusive_until  -> hanya winner
@@ -293,18 +310,20 @@ return Promise::new(target)
 
 ### 5.4 `on_executed(job_id, round_id)` (callback)
 
-Hasil dibaca sebagai byte mentah dengan `env::promise_result_checked(0, MAX_RESULT_LEN)` (fakta §1; `promise_result` deprecated), supaya bisa menangani target yang mengembalikan nilai maupun tidak. `MAX_RESULT_LEN` cukup kecil (usulan 64 byte), karena yang dibutuhkan hanya membedakan `true`/`false`/kosong. Hasil yang lebih panjang dari batas itu dianggap `Successful` untuk aturan `Any`, dan bukan `true` untuk aturan `ReturnsTrue`. Perilaku `#[callback_result]` untuk target tanpa nilai kembalian tidak ditemukan di docs (halaman docs.rs-nya 404), jadi tidak dipakai.
+Hasil dibaca sebagai byte mentah dengan `env::promise_result_checked(0, MAX_RESULT_LEN)` (fakta §1; `promise_result` deprecated), supaya bisa menangani target yang mengembalikan nilai maupun tidak. `MAX_RESULT_LEN` = 1024 byte. Fakta dari kode near-sdk 5.30.1: kalau hasil lebih panjang dari batas, fungsi ini mengembalikan `Err(PromiseError::TooLong(len))` walaupun panggilannya sukses, dan `Err(PromiseError::Failed)` kalau panggilannya gagal. Karena itu `TooLong` diperlakukan sebagai sukses: `Paid` untuk aturan `Any`, `ReturnedFalse` untuk aturan `ReturnsTrue` (hasil sepanjang itu pasti bukan `true`). Perbaikan ini dibuat 14 Nov; versi sebelumnya salah menganggap `TooLong` sebagai `Failed`. Perilaku `#[callback_result]` untuk target tanpa nilai kembalian tidak ditemukan di docs (halaman docs.rs-nya 404), jadi tidak dipakai.
 
 ```
 kalau job/round tidak cocok (round_id berbeda): log dan return (jangan panic)
 in_flight = round.in_flight.take()
 
 hasil:
-  Failed                                   -> outcome = Failed
-  Successful(bytes) && rule == Any         -> outcome = Paid
-  Successful(bytes) && rule == ReturnsTrue -> outcome = (bytes == b"true") ? Paid : ReturnedFalse
+  Err(Failed)                              -> outcome = Failed
+  Ok(_) atau Err(TooLong) && rule == Any   -> outcome = Paid
+  Ok(bytes) && rule == ReturnsTrue         -> outcome = (bytes == b"true") ? Paid : ReturnedFalse
+  Err(TooLong) && rule == ReturnsTrue      -> outcome = ReturnedFalse
 
 Paid:
+  record.paid = pay (bruto)
   fee = pay * protocol_fee_bps / 10_000
   keeper[executor].rewards += pay - fee
   fees_accrued += fee
@@ -326,18 +345,26 @@ Failed:
   catat riwayat; executor boleh mencoba lagi
 ```
 
-### 5.5 `slash_missed(job_id)` (P1)
+### 5.5 Slashing: `slash_missed(job_id)` dan otomatis di `execute`
+
+Slashing terjadi lewat `slash_missed`, atau otomatis saat keeper mana pun memanggil `execute` setelah jendela pemenang lewat.
 
 ```
-syarat: winner ada, !open_mode, due_seen_block ada, block_height > exclusive_until, in_flight None
-slash = min(max_reward, winner.locked)
+syarat: winner ada dan belum settled, !open_mode, due_block diketahui, block_height > exclusive_until, in_flight None
+slash = min(max_reward, winner.locked, stake keeper)
 keeper[winner].stake  -= slash
 keeper[winner].locked -= winner.locked
 keeper[winner].slashed += 1
 job.balance += slash
 round.open_mode = true
-catat riwayat (slashed_keeper = winner)
+catat riwayat: outcome Slashed, paid 0, executor = slashed_keeper = winner
 ```
+
+**Pemenang yang di-slash boleh ikut mengeksekusi di mode terbuka.** Ini konsekuensi aturan "di mode terbuka, keeper terdaftar mana pun boleh execute", dan memang terjadi di testnet (job 1 round 3: k1 di-slash, lalu k1 sendiri yang mengeksekusi). Hitungannya: pemenang yang terlambat kehilangan `max_reward` lewat slash, lalu menerima `max_reward × (1 − fee)`, jadi bersihnya −5% × `max_reward` dikurangi gas. Kalau tepat waktu, ia menerima `bid × (1 − fee)` ≥ 0. Jadi terlambat selalu lebih buruk daripada tepat waktu, dan job tetap dijalankan. **Diputuskan 14 Nov (Razaqi): perilaku ini dipertahankan.** Alasan utamanya liveness. Kalau keeper yang di-slash dikeluarkan dari putaran itu dan ternyata hanya dia yang online, tidak ada yang bisa mengeksekusi, dan putaran baru juga tidak terbuka karena putaran baru hanya dibuka setelah eksekusi.
+
+Untuk dashboard: di `round_id` yang sama, kalau `executor` baris eksekusi **sama dengan** `slashed_keeper` baris `Slashed`, tampilkan sebagai "terlambat, kena penalti, tetap dieksekusi". Kalau berbeda, tampilkan sebagai "failover ke keeper lain".
+
+Kasus tepi: kalau executor menghapus pendaftarannya di antara `execute` dan callback, outcome tetap `Paid` tapi `paid` = 0 dan dana tetap di job.
 
 ### 5.6 Putaran baru
 
@@ -385,6 +412,7 @@ Dashboard MVP membaca view method, bukan event, supaya tidak butuh indexer.
 
 - Biaya storage dihitung dari selisih `env::storage_usage()` sebelum dan sesudah operasi, dikalikan 1E19 yoctoNEAR per byte (fakta).
 - `register_job`: dibayar dari deposit pemilik job.
+- `register_keeper`: **seluruh deposit menjadi stake**. Storage data keeper (entri `keepers` + `keeper_ids`) ditanggung saldo kontrak, dan dibebaskan lagi saat `unregister_keeper`. Spam pendaftaran tetap mahal, karena tiap keeper harus menyetor minimal `min_keeper_stake` (1 NEAR).
 - Commit dan reveal (termasuk `memo`): ukurannya dibatasi (`max_commits_per_round`, `max_memo_bytes`). Pada MVP, storage ini ditanggung saldo kontrak, yang diisi pemilik kontrak saat deploy. Data commit/reveal dihapus saat putaran baru dibuka, sehingga storage dipakai ulang.
 - Riwayat: ring buffer `max_history` entri per job.
 - Ukuran byte per struktur **belum diukur**; ukur di integration test lalu tetapkan saldo awal kontrak.

@@ -1,0 +1,321 @@
+// Mashpit reference keeper agent.
+//
+// Loop: read every active job, then act on its phase as computed by the contract:
+//   Commit           -> decide a bid (AI, else deterministic rule) and commit its hash
+//   Reveal           -> reveal bid + salt (+ the decision's reason as memo)
+//   AwaitingFinalize -> the expected winner finalizes, or executes if the job is already due
+//   Exclusive        -> the winner executes; others poke so the winner's window starts counting
+//   Open             -> anyone executes (the contract slashes a winner that missed its window)
+// Only methods allowed by a function-call key are used, and none attaches a deposit.
+
+import { aiDecision } from "./ai.ts";
+import { deriveSalt, commitHashBase64, gridBid, recoverBid, truncateUtf8 } from "./auction.ts";
+import { loadConfig } from "./config.ts";
+import { estimateCost, fallbackDecision, minProfitableStep, type Decision, type DecisionInput } from "./fallback.ts";
+import { Mashpit, contractError, type ContractConfig, type JobView } from "./near.ts";
+
+const cfg = loadConfig();
+const mp = new Mashpit(cfg);
+const me = cfg.accountId;
+
+// In-memory state only. Losing it on restart is fine: salts are derived and bids recovered.
+const bids = new Map<string, { bid: bigint; reason: string }>();
+const lastTry = new Map<string, number>(); // action key -> block of last attempt
+const seenRounds = new Map<number, { roundId: number; commits: number; winningBid: bigint | null }>();
+const previousRound = new Map<number, { commits: number; winningBid: bigint | null }>();
+let contractConfig: ContractConfig & { protocol_fee_bps: number };
+
+const RETRY_BLOCKS = 5;
+const log = (msg: string) => console.log(`${new Date().toISOString()} [${me}] ${msg}`);
+const near = (y: bigint | string) => (Number(BigInt(y)) / 1e24).toFixed(4);
+
+function shouldTry(key: string, block: number): boolean {
+  const last = lastTry.get(key);
+  if (last !== undefined && block - last < RETRY_BLOCKS) return false;
+  lastTry.set(key, block);
+  return true;
+}
+
+async function send(label: string, method: string, args: Record<string, unknown>, gasTgas: number) {
+  try {
+    const result = await mp.call<unknown>(method, args, gasTgas);
+    log(`${label}: ok${result === null || result === undefined ? "" : ` -> ${JSON.stringify(result)}`}`);
+    return true;
+  } catch (err) {
+    log(`${label}: failed (${contractError(err)})`);
+    return false;
+  }
+}
+
+function trackRound(job: JobView) {
+  const r = job.round;
+  const seen = seenRounds.get(job.id);
+  if (seen && seen.roundId !== r.round_id) {
+    previousRound.set(job.id, { commits: seen.commits, winningBid: seen.winningBid });
+  }
+  seenRounds.set(job.id, {
+    roundId: r.round_id,
+    commits: r.commits.length,
+    winningBid: r.winner ? BigInt(r.winner.bid) : null,
+  });
+}
+
+let gasPriceCache: { value: bigint; at: number } | null = null;
+async function gasPrice(): Promise<bigint> {
+  if (!gasPriceCache || Date.now() - gasPriceCache.at > 60_000) {
+    gasPriceCache = { value: await mp.gasPrice(), at: Date.now() };
+  }
+  return gasPriceCache.value;
+}
+
+async function decide(job: JobView): Promise<Decision> {
+  const maxReward = BigInt(job.max_reward);
+  // The commit phase is short (~50 blocks), so read everything in parallel.
+  const [keeper, price, history] = await Promise.all([mp.keeper(), gasPrice(), mp.history(job.id)]);
+  const freeStake = keeper ? BigInt(keeper.stake) - BigInt(keeper.locked) : 0n;
+  const bond = maxReward > BigInt(contractConfig.min_commit_bond) ? maxReward : BigInt(contractConfig.min_commit_bond);
+  const input: DecisionInput = {
+    jobId: job.id,
+    target: job.target,
+    method: job.method,
+    maxReward,
+    estCost: estimateCost(price),
+    feeBps: contractConfig.protocol_fee_bps,
+    freeStake,
+    requiredStake: bond + maxReward * BigInt(contractConfig.stake_multiplier),
+    history,
+    previousRound: previousRound.get(job.id),
+    strategy: cfg.strategy,
+  };
+
+  const rule = fallbackDecision(input);
+  if (!rule.participate && input.freeStake < input.requiredStake) return rule; // hard limit
+  if (BigInt(job.balance) < maxReward) {
+    return { participate: false, step: 100, reason: "Skip: job balance below max reward.", source: "fallback" };
+  }
+
+  const floor = Math.max(0, minProfitableStep(input, 1));
+  const signature = marketSignature(job, input, floor);
+  const cached = aiCache.get(job.id);
+  if (cached && cached.signature === signature && Date.now() - cached.at < AI_CACHE_MS) {
+    return { ...cached.decision, source: "cache", usage: undefined, reason: `${cached.decision.reason} (cached)` };
+  }
+
+  const ai = await aiDecision(cfg, input);
+  if (!ai) return rule;
+  const decision =
+    ai.participate && ai.step < floor
+      ? { ...ai, step: Math.min(100, floor), reason: `${ai.reason} (raised to breakeven ${floor}%)` }
+      : ai;
+  aiCache.set(job.id, { signature, decision, at: Date.now() });
+  if (ai.usage) log(`job ${job.id}: AI used ${ai.usage.prompt}+${ai.usage.completion} tokens`);
+  return decision;
+}
+
+// ---------- AI decision cache ----------
+// Ask the model again only when the market changes (break-even, competitors, previous winning
+// bid, last outcome) or the cached answer is older than AI_CACHE_MS. Cuts AI cost on fast jobs.
+
+const AI_CACHE_MS = Number(process.env.AI_CACHE_MS ?? 30 * 60_000);
+const aiCache = new Map<number, { signature: string; decision: Decision; at: number }>();
+
+function marketSignature(job: JobView, input: DecisionInput, breakeven: number): string {
+  const last = input.history.at(-1);
+  return [
+    job.max_reward,
+    breakeven,
+    input.previousRound?.commits ?? "-",
+    input.previousRound?.winningBid?.toString() ?? "-",
+    last ? `${last.outcome}:${last.executor === me}` : "-",
+  ].join("|");
+}
+
+async function handleCommit(job: JobView) {
+  const r = job.round;
+  if (cfg.noNewBids || r.commits.some((c) => c.keeper === me)) return;
+  if (job.current_block >= r.commit_end - 3) return; // too late to land in the commit phase
+  const key = `commit:${job.id}:${r.round_id}`;
+  if (!shouldTry(key, job.current_block)) return;
+
+  const d = await decide(job);
+  if (!d.participate) {
+    log(`job ${job.id} round ${r.round_id}: no bid. ${d.reason}`);
+    lastTry.set(key, Number.MAX_SAFE_INTEGER); // decided for this round
+    return;
+  }
+  const bid = gridBid(BigInt(job.max_reward), d.step);
+  const salt = deriveSalt(cfg.secret, cfg.contractId, job.id, r.round_id);
+  bids.set(`${job.id}:${r.round_id}`, { bid, reason: d.reason });
+  log(`job ${job.id} round ${r.round_id}: bid ${d.step}% = ${near(bid)} NEAR [${d.source}] ${d.reason}`);
+  await send(`commit job ${job.id} round ${r.round_id}`, "commit_bid", {
+    job_id: job.id,
+    hash: commitHashBase64(bid, salt, me),
+  }, 30);
+}
+
+async function handleReveal(job: JobView) {
+  const r = job.round;
+  const mine = r.commits.find((c) => c.keeper === me);
+  if (!mine || mine.revealed) return;
+  if (!shouldTry(`reveal:${job.id}:${r.round_id}`, job.current_block)) return;
+
+  const salt = deriveSalt(cfg.secret, cfg.contractId, job.id, r.round_id);
+  let entry = bids.get(`${job.id}:${r.round_id}`);
+  if (!entry) {
+    const bid = recoverBid(mine.hash, BigInt(job.max_reward), salt, me);
+    if (bid === null) {
+      log(`job ${job.id} round ${r.round_id}: cannot recover bid from commit hash; bond will be forfeited`);
+      return;
+    }
+    entry = { bid, reason: "Bid recovered after restart from the on-chain commit hash." };
+    log(`job ${job.id} round ${r.round_id}: recovered bid ${near(bid)} NEAR after restart`);
+  }
+  const memo = truncateUtf8(entry.reason, contractConfig.max_memo_bytes);
+  await send(`reveal job ${job.id} round ${r.round_id} (${near(entry.bid)} NEAR)`, "reveal_bid", {
+    job_id: job.id,
+    bid: entry.bid.toString(),
+    salt,
+    memo,
+  }, 30);
+}
+
+function expectedWinner(job: JobView): string | null {
+  const reveals = [...job.round.reveals].sort((a, b) => {
+    const d = BigInt(a.bid) - BigInt(b.bid);
+    if (d !== 0n) return d < 0n ? -1 : 1;
+    if (a.commit_block !== b.commit_block) return a.commit_block - b.commit_block;
+    return a.keeper < b.keeper ? -1 : a.keeper > b.keeper ? 1 : 0;
+  });
+  return reveals[0]?.keeper ?? null; // the contract may still skip a keeper without free stake
+}
+
+async function execute(job: JobView, why: string) {
+  if (cfg.skipExecute) {
+    if (shouldTry(`skip:${job.id}:${job.round.round_id}`, job.current_block)) {
+      log(`job ${job.id}: KEEPER_SKIP_EXECUTE is on, not executing (${why})`);
+    }
+    return;
+  }
+  if (!shouldTry(`execute:${job.id}:${job.round.round_id}`, job.current_block)) return;
+  const gas = Math.min(
+    contractConfig.max_total_gas_tgas,
+    job.gas_tgas + contractConfig.callback_gas_tgas + contractConfig.overhead_gas_tgas + 10,
+  );
+  await send(`execute job ${job.id} round ${job.round.round_id} (${why})`, "execute", { job_id: job.id }, gas);
+}
+
+async function poke(job: JobView) {
+  // Only EveryEpoch jobs need it: their due block is unknown until a call observes the epoch.
+  if (job.schedule !== "EveryEpoch" || job.round.due_seen_block !== null) return;
+  if (!shouldTry(`poke:${job.id}:${job.round.round_id}`, job.current_block)) return;
+  await send(`poke job ${job.id} round ${job.round.round_id}`, "poke", { job_id: job.id }, 30);
+}
+
+async function handleJob(job: JobView) {
+  trackRound(job);
+  const r = job.round;
+  const winner = r.winner && !r.winner.settled ? r.winner.keeper : null;
+
+  switch (job.phase) {
+    case "Commit":
+      return handleCommit(job);
+    case "Reveal":
+      return handleReveal(job);
+    case "AwaitingFinalize": {
+      const expected = expectedWinner(job);
+      if (job.is_due) {
+        if (expected === me || expected === null) return execute(job, expected ? "winner" : "no bids");
+        return poke(job); // finalizes the round and starts the winner's window
+      }
+      if (expected === me && shouldTry(`finalize:${job.id}:${r.round_id}`, job.current_block)) {
+        await send(`finalize job ${job.id} round ${r.round_id}`, "finalize_round", { job_id: job.id }, 30);
+      }
+      return;
+    }
+    case "Exclusive":
+      if (winner === me) return execute(job, "exclusive window");
+      return poke(job);
+    case "Open":
+      if (job.is_due) return execute(job, winner && winner !== me ? `${winner} missed its window` : "open round");
+      return;
+    default:
+      return; // Awarded (not due yet), InFlight, Paused, Closed
+  }
+}
+
+// ---------- Pacing ----------
+// Public RPCs rate-limit (FastNEAR free tier, and rpc.testnet.near.org answers 429 as deprecated),
+// so poll fast only while a job is in a phase that needs action soon.
+
+const BLOCK_MS = 600; // measured testnet block time is ~0.58 s
+const IDLE_MS = Number(process.env.IDLE_POLL_MS ?? 20_000);
+const JOB_LIST_TTL_MS = 30_000;
+let jobList: { ids: number[]; at: number } | null = null;
+
+async function activeJobIds(): Promise<number[]> {
+  if (!jobList || Date.now() - jobList.at > JOB_LIST_TTL_MS) {
+    const all = await mp.listJobs();
+    jobList = { ids: all.filter((s) => s.status === "Active").map((s) => s.id), at: Date.now() };
+  }
+  return jobList.ids;
+}
+
+/** How long this job can be left alone, in milliseconds. */
+function idleFor(job: JobView): number {
+  const r = job.round;
+  const until = (block: number) => Math.max(0, (block - job.current_block) * BLOCK_MS);
+  const mine = r.commits.find((c) => c.keeper === me);
+  switch (job.phase) {
+    case "Commit":
+      return mine ? until(r.commit_end) : 0;
+    case "Reveal":
+      return mine && !mine.revealed ? 0 : until(r.reveal_end);
+    case "Awarded":
+    case "Open":
+      if (job.is_due) return 0;
+      return job.due_block !== null && job.schedule !== "EveryEpoch" ? until(job.due_block) : IDLE_MS;
+    case "AwaitingFinalize":
+    case "Exclusive":
+    case "InFlight":
+      return 0;
+    default:
+      return IDLE_MS;
+  }
+}
+
+/** Handle every active job; return how long to sleep before the next tick. */
+async function tick(): Promise<number> {
+  const ids = await activeJobIds();
+  const jobs = (await Promise.all(ids.map((id) => mp.job(id)))).filter((j): j is JobView => j !== null);
+  // Transactions stay sequential: one signer, one nonce sequence.
+  for (const job of jobs) await handleJob(job);
+  const idle = Math.min(IDLE_MS, ...jobs.map(idleFor));
+  return Math.max(cfg.pollMs, idle);
+}
+
+async function main() {
+  contractConfig = (await mp.config()) as typeof contractConfig;
+  const keeper = await mp.keeper();
+  if (!keeper) throw new Error(`${me} is not a registered keeper on ${cfg.contractId}`);
+  log(
+    `started: contract ${cfg.contractId}, strategy ${cfg.strategy}, ` +
+      `AI ${cfg.ai.apiKey && cfg.ai.model ? cfg.ai.model : "off (deterministic rule)"}, ` +
+      `stake ${near(keeper.stake)} NEAR, rewards ${near(keeper.rewards)} NEAR` +
+      (cfg.skipExecute ? ", SKIP_EXECUTE on" : "") +
+      (cfg.noNewBids ? ", DRAIN on (no new bids)" : ""),
+  );
+  for (;;) {
+    let wait = cfg.pollMs;
+    try {
+      wait = await tick();
+    } catch (err) {
+      log(`tick error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    await new Promise((r) => setTimeout(r, wait));
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

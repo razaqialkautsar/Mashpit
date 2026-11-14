@@ -305,7 +305,7 @@ Semua metrik dibaca dari view method kontrak (tanpa backend analitik):
 | A1 | Kontrak `linear-protocol.testnet` tetap aktif (`is_paused: false`) selama demo | Fakta per 13 Nov; bisa berubah |
 | A2 | `epoch_update_rewards` LiNEAR bisa dipanggil oleh akun mana pun, termasuk kontrak `mashpit` | Fakta dari kode (hanya `assert_running` + cek gas); belum diuji lewat panggilan antar-kontrak |
 | A3 | Menjalankan fungsi publik di kontrak testnet pihak lain untuk demo bisa diterima | Asumsi; dipertimbangkan tim |
-| A4 | Latensi model AI cukup kecil untuk fase commit 50 blok (~29 detik) | Asumsi; belum diukur |
+| A4 | Latensi model AI cukup kecil untuk fase commit 100 blok (~58 detik) | Sebagian terukur (14 Nov, satu panggilan per model lewat kode keeper): `deepseek/deepseek-v3.2` menjawab valid dalam 9,4 detik; `deepseek-ai/DeepSeek-V4.1-Flash-1017` timeout di 20 detik. Fase commit dinaikkan dari 50 ke 100 blok pada 13 Nov |
 | A5 | Tim punya akses NEAR AI Cloud (kredit $10 via NEAR Builders, Q-000) | Asumsi |
 | A6 | Batas gas aman 300 Tgas cukup: `epoch_update_rewards` butuh ≥ 125 Tgas (75 + 25 + 25, dari konstanta LiNEAR) | Fakta (konstanta); total dengan overhead belum diukur |
 | A7 | Testnet NEAR gratis lewat faucet (Q-008) | Fakta |
@@ -454,9 +454,9 @@ Mashpit/
 | D3 | Persona utama untuk pitch | P1 (operator protokol liquid staking) |
 | D4 | Framework web | **Diputuskan 14 Nov: Next.js + TypeScript + Tailwind CSS**, di-build sebagai situs statis (`output: "export"`), folder `fe/`. Keputusan Bayu |
 | D5 | Hosting dashboard dan mesin keeper | **Keeper: diputuskan 13 Nov, Railway** (Root Directory `keeper`, satu repo). Dashboard: belum dipilih |
-| D6 | Angka: fee protokol, `min_keeper_stake`, batas bawah jaminan commit, `stake_multiplier` | Default usulan di SMART_CONTRACT_SPEC §3 |
-| D7 | Model AI untuk keeper | Pilih dari `/v1/models` setelah latensi diukur; kandidat termurah: `z-ai/glm-5.3-flash`, `openai/gpt-6-luna` |
-| D8 | Apakah memberi tahu tim LiNEAR sebelum memakai kontrak testnet mereka untuk demo | Keputusan tim |
+| D6 | Angka: fee protokol, `min_keeper_stake`, batas bawah jaminan commit, `stake_multiplier`, panjang fase | **Panjang fase diputuskan 13 Nov (Razaqi): commit / reveal / grace = 100 / 100 / 150 blok**, setelah 50 / 50 / 50 terlalu sempit di uji testnet. Angka lain tetap default di SMART_CONTRACT_SPEC §3 |
+| D7 | Model AI untuk keeper | **Diputuskan 14 Nov (Razaqi): `anthropic/claude-haiku-5-5`**. Benchmark 14 Nov (2 panggilan per model lewat kode keeper; detail di `keeper/README.md`): logika tawaran benar, 2,2–2,8 detik, ~$0,00025 per keputusan; alasannya paling jelas untuk memo di dashboard. Bukan model TEE (anonymised). API key NEAR AI didapat 14 Nov |
+| D8 | Apakah memberi tahu tim LiNEAR sebelum memakai kontrak testnet mereka untuk demo | Fakta: `epoch_update_rewards` di `linear-protocol.testnet` sudah dipanggil lewat Mashpit sejak 13 Nov tanpa pemberitahuan (method publik, testnet). Apakah tetap memberi tahu mereka: keputusan tim |
 
 ---
 
