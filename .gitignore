@@ -1,6 +1,10 @@
 # Local tool settings
 .claude/
 
+# Agent skills installed from skills-lock.json (npx skills experimental_install)
+.agents/
+.kiro/
+
 # Internal research notes (not part of the submission)
 NEAR-Hackathon-2026-Riset-Ide.md
 
