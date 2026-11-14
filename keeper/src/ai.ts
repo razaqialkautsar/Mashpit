@@ -87,7 +87,8 @@ export async function aiDecision(cfg: Config, input: DecisionInput): Promise<Dec
       return null;
     }
     const parsed = JSON.parse(json) as { participate?: unknown; bid_percent?: unknown; reason?: unknown };
-    const step = Number(parsed.bid_percent);
+    // A "no" needs no bid: models often leave bid_percent out when they decline.
+    const step = parsed.participate === false && parsed.bid_percent === undefined ? 100 : Number(parsed.bid_percent);
     if (typeof parsed.participate !== "boolean" || !Number.isInteger(step) || step < 0 || step > 100) {
       console.warn(`[ai] invalid answer: ${json.slice(0, 200)}`);
       return null;
