@@ -29,6 +29,7 @@ let lowFunds = false; // set by checkFunds: no new commits while the balance is 
 const noted = new Set<string>(); // log-once keys
 
 const RETRY_BLOCKS = 5;
+const OPEN_JITTER_MS = Number(process.env.OPEN_JITTER_MS ?? 4000);
 const log = (msg: string) => console.log(`${new Date().toISOString()} [${me}] ${msg}`);
 const near = (y: bigint | string) => (Number(BigInt(y)) / 1e24).toFixed(4);
 const logOnce = (key: string, msg: string) => {
@@ -222,6 +223,16 @@ async function execute(job: JobView, why: string) {
   }
   if (job.current_block < next) {
     return logOnce(`backoff:${job.id}:${job.round.round_id}:${failures.count}`, `job ${job.id}: target failed ${failures.count}x, retrying from block ${next}`);
+  }
+  // In an open round every keeper may execute, so they all fire on the same block and all but
+  // one pay gas for a rejected call. Wait a random moment, then re-read the job and stand down
+  // if another keeper is already on it.
+  if (why !== "winner" && why !== "exclusive window") {
+    await new Promise((r) => setTimeout(r, Math.random() * OPEN_JITTER_MS));
+    const fresh = await mp.job(job.id);
+    if (!fresh || fresh.round.round_id !== job.round.round_id || fresh.round.in_flight || !fresh.is_due) {
+      return log(`job ${job.id} round ${job.round.round_id}: another keeper got there first, standing down`);
+    }
   }
   const gas = Math.min(
     contractConfig.max_total_gas_tgas,
