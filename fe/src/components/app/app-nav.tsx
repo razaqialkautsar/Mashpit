@@ -97,14 +97,9 @@ export function AppNav({ back, hideTabs = false }: { back?: MobileBack; hideTabs
                   key={href}
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`relative text-[15px] font-medium transition-colors ${active ? "text-ink" : "text-ink-2 hover:text-ink"}`}
+                  className={`text-[15px] font-medium transition-colors ${active ? "text-ink" : "text-ink-2 hover:text-ink"}`}
                 >
                   {label}
-                  {/* Active page: a small accent dot under the label. */}
-                  <span
-                    aria-hidden="true"
-                    className={`absolute -bottom-2.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-accent transition-opacity ${active ? "opacity-100" : "opacity-0"}`}
-                  />
                 </Link>
               );
             })}
