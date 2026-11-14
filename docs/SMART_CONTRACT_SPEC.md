@@ -343,7 +343,10 @@ ReturnedFalse (rancangan; perlu konfirmasi tim):
 Failed:
   tidak dibayar; putaran TIDAK ditutup (job masih jatuh tempo)
   catat riwayat; executor boleh mencoba lagi
+  kalau executor = pemenang (belum settled): lepas kunci pemenang TANPA slash, open_mode = true
 ```
+
+Alasan aturan terakhir (perbaikan 14 Nov): pemenang yang sudah memanggil tidak lalai, karena target-nyalah yang gagal. Versi sebelumnya membiarkan kuncinya tetap aktif, sehingga pemenang itu di-slash setelah jendelanya lewat, padahal kesalahannya ada di pihak pemilik job. Sekarang pemenang dilepas tanpa penalti, dan putaran terbuka untuk keeper lain dengan bayaran `max_reward`. Keeper referensi berhenti mencoba setelah 3 kegagalan di satu putaran (`keeper/src/policy.ts`), supaya target yang rusak tidak menguras gas.
 
 ### 5.5 Slashing: `slash_missed(job_id)` dan otomatis di `execute`
 

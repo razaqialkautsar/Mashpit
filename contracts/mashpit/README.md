@@ -202,6 +202,9 @@ produces two records with the same `round_id`:
 - a `Slashed` record (`paid` 0, `executor` = `slashed_keeper` = the winner that missed its window);
 - then the execution by the keeper that took over in open mode, paid `max_reward`.
 
+A winner whose call fails is not slashed: the target failed, not the keeper. Its lock is released
+and the round opens to every keeper.
+
 The slashed winner may itself execute in open mode. It then loses `max_reward` to the slash and
 gets back `max_reward` minus the fee, so being late never pays better than executing on time.
 
