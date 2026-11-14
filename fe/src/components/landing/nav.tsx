@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { routes } from "@/lib/routes";
 import { Brand } from "./brand";
+import { WalletButton } from "../wallet/wallet-button";
 import { ButtonLink } from "./button";
 
 const links = [
@@ -49,10 +50,13 @@ export function Nav() {
             </a>
           ))}
         </nav>
-        {/* Outline, so the hero CTA stays the one filled button on screen. */}
-        <ButtonLink href={routes.live} size="sm" variant="ghost">
-          Open live arena
-        </ButtonLink>
+        <div className="flex items-center gap-2">
+          {/* Outline, so the hero CTA stays the one filled button on screen. */}
+          <ButtonLink href={routes.live} size="sm" variant="ghost" className="hidden sm:inline-flex">
+            Open live arena
+          </ButtonLink>
+          <WalletButton />
+        </div>
       </div>
     </header>
   );

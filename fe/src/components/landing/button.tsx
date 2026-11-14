@@ -19,8 +19,10 @@ type Props = ComponentProps<typeof Link> & {
   size?: keyof typeof sizes;
 };
 
+export function buttonClasses(variant: keyof typeof variants = "primary", size: keyof typeof sizes = "md") {
+  return `${base} ${variants[variant]} ${sizes[size]}`;
+}
+
 export function ButtonLink({ variant = "primary", size = "md", className = "", ...props }: Props) {
-  return (
-    <Link className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props} />
-  );
+  return <Link className={`${buttonClasses(variant, size)} ${className}`} {...props} />;
 }

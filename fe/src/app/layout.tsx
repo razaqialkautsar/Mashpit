@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import localFont from "next/font/local";
+import { WalletProvider } from "@/components/wallet/wallet-provider";
 import "./globals.css";
 
 const oddval = localFont({
@@ -41,7 +42,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${oddval.variable} ${jakarta.variable} ${jetbrains.variable} antialiased`}
     >
-      <body className="min-h-dvh overflow-x-hidden">{children}</body>
+      <body className="min-h-dvh overflow-x-hidden">
+        <WalletProvider>{children}</WalletProvider>
+      </body>
     </html>
   );
 }
