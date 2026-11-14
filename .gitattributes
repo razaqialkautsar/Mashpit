@@ -1,0 +1,3 @@
+# pen.dev design files are read byte for byte by the app: never convert
+# their line endings on checkout (Windows core.autocrlf would add CRs).
+*.pen -text

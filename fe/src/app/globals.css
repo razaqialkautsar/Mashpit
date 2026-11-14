@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+/* Design tokens. Source of truth: DESIGN.md at the repo root. */
+@theme {
+  --color-bg: #0c0a09;
+  --color-surface: #161311;
+  --color-surface-2: #1f1a17;
+  --color-surface-3: #2a231f;
+  --color-line: #2b2521;
+  --color-line-strong: #3d342e;
+  --color-ink: #f5efe9;
+  --color-ink-2: #b3a9a1;
+  --color-ink-3: #8c8179;
+  --color-accent: #e6502b;
+  --color-accent-hover: #f26238;
+  --color-accent-deep: #802d18;
+  --color-accent-soft: #3a1a10;
+  --color-accent-ink: #1a0b05;
+  --color-amber: #ffb54a;
+  --color-glow: #ffd38a;
+  --color-ok: #5bd69a;
+  --color-ok-bg: #12251c;
+  --color-warn: #e8c15a;
+  --color-warn-bg: #2a2410;
+  --color-bad: #ff6b5c;
+  --color-bad-bg: #301512;
+
+  --font-display: var(--font-oddval), var(--font-jakarta), system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    scroll-padding-top: 88px;
+    scrollbar-color: var(--color-line-strong) var(--color-bg);
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+  }
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+}
+
+@utility wrap {
+  width: min(1200px, 100% - 2 * clamp(16px, 4vw, 40px));
+  margin-inline: auto;
+}
+
+@utility section-y {
+  padding-block: clamp(64px, 9vw, 128px);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Wallet picker. @hot-labs/near-connect appends .hot-connector-popup to      */
+/* <body> with its own fixed 420x615 card, which overflows short phones.      */
+/* The library injects its CSS under a random class (specificity 0,2,0), so   */
+/* these selectors lead with `body` to win without relying on !important.     */
+/* ------------------------------------------------------------------------- */
+body .hot-connector-popup .modal-container {
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  background-color: rgb(12 10 9 / 0.72);
+  backdrop-filter: blur(6px);
+  overscroll-behavior: contain;
+}
+
+body .hot-connector-popup .modal-content {
+  /* dvh tracks the mobile URL bar; the card can never be taller than the screen. */
+  max-height: min(560px, 100dvh - 24px);
+  max-width: min(400px, 100%);
+  min-height: 0;
+  border-radius: 24px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+body .hot-connector-popup .modal-header {
+  flex: none;
+  padding: 16px 16px 8px;
+}
+
+body .hot-connector-popup .modal-header p {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+body .hot-connector-popup .modal-body {
+  /* min-height: 0 lets the flex child shrink so it scrolls instead of being cut off. */
+  min-height: 0;
+  margin: 0;
+  padding: 8px;
+  gap: 4px;
+  border-radius: 20px 20px 0 0;
+  background: var(--color-surface-2);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+body .hot-connector-popup .connect-item {
+  min-height: 56px;
+  padding: 8px 10px;
+  border-radius: 16px;
+}
+body .hot-connector-popup .connect-item:hover {
+  background: var(--color-surface-3);
+}
+body .hot-connector-popup .connect-item img {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+body .hot-connector-popup .connect-item p,
+body .hot-connector-popup .connect-item-info > span:first-child {
+  font-size: 16px;
+  font-weight: 600;
+}
+body .hot-connector-popup .connect-item-info .wallet-address {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+body .hot-connector-popup .footer {
+  flex: none;
+  padding: 12px 16px;
+  gap: 10px;
+  background: var(--color-surface-2);
+}
+body .hot-connector-popup .footer p,
+body .hot-connector-popup .get-wallet-link {
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  body .hot-connector-popup .modal-container {
+    padding: 0;
+  }
+  /* Bottom sheet: full width, never taller than the visible viewport. */
+  body .hot-connector-popup .modal-content {
+    max-width: 100%;
+    max-height: calc(100dvh - 48px);
+    border-radius: 24px 24px 0 0;
+    border-width: 1px 0 0;
+  }
+  body .hot-connector-popup .modal-header p {
+    font-size: 20px;
+  }
+  body .hot-connector-popup .connect-item img {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* Short landscape phones: keep the header, shrink the rows. */
+@media (max-height: 480px) {
+  body .hot-connector-popup .modal-content {
+    max-height: calc(100dvh - 12px);
+  }
+  body .hot-connector-popup .modal-header {
+    padding-block: 10px 4px;
+  }
+  body .hot-connector-popup .connect-item {
+    min-height: 48px;
+  }
+}

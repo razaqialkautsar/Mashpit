@@ -1,0 +1,28 @@
+import Link from "next/link";
+import type { ComponentProps } from "react";
+
+const base =
+  "inline-flex items-center justify-center gap-2 rounded-full border font-bold transition-[background-color,border-color,transform] duration-200 active:translate-y-px";
+
+const variants = {
+  primary: "border-transparent bg-accent text-accent-ink hover:bg-accent-hover",
+  ghost: "border-line-strong text-ink hover:border-ink-3 hover:bg-surface",
+} as const;
+
+const sizes = {
+  sm: "px-[18px] py-2.5 text-sm",
+  md: "px-[22px] py-[13px] text-[15px]",
+} as const;
+
+type Props = ComponentProps<typeof Link> & {
+  variant?: keyof typeof variants;
+  size?: keyof typeof sizes;
+};
+
+export function buttonClasses(variant: keyof typeof variants = "primary", size: keyof typeof sizes = "md") {
+  return `${base} ${variants[variant]} ${sizes[size]}`;
+}
+
+export function ButtonLink({ variant = "primary", size = "md", className = "", ...props }: Props) {
+  return <Link className={`${buttonClasses(variant, size)} ${className}`} {...props} />;
+}
