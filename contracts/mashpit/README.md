@@ -194,6 +194,17 @@ itself accepts any bid up to `max_reward`; the grid is a keeper convention.
 `Exclusive`, `Open`, `InFlight`, `Paused`, `Closed`), `is_due`, `due_block`, `exclusive_until`,
 and the current block and epoch.
 
+`get_history` returns one record per outcome: `Paid`, `Failed`, `ReturnedFalse` or `Slashed`.
+`paid` is gross, the amount taken from the job balance. The keeper receives
+`paid − paid × protocol_fee_bps / 10000`, and the rest goes to `fees_accrued`. A failover
+produces two records with the same `round_id`:
+
+- a `Slashed` record (`paid` 0, `executor` = `slashed_keeper` = the winner that missed its window);
+- then the execution by the keeper that took over in open mode, paid `max_reward`.
+
+The slashed winner may itself execute in open mode. It then loses `max_reward` to the slash and
+gets back `max_reward` minus the fee, so being late never pays better than executing on time.
+
 ## Default config
 
 | Parameter | Default |
@@ -202,7 +213,7 @@ and the current block and epoch.
 | `min_keeper_stake` | 1 NEAR |
 | `stake_multiplier` | 10 |
 | `min_commit_bond` | 0.1 NEAR |
-| `commit_blocks` / `reveal_blocks` / `grace_blocks` | 50 / 50 / 50 |
+| `commit_blocks` / `reveal_blocks` / `grace_blocks` | 100 / 100 / 150 (~58 / ~58 / ~87 s) |
 | `max_commits_per_round` | 10 |
 | `max_history` | 20 |
 | `max_memo_bytes` | 280 |
