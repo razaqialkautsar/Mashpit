@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { PitScene } from "./pit-scene";
 
 /**
- * The hero scene in WebGL. three.js and the scene code are loaded on demand,
- * so they stay out of the initial bundle. If WebGL is unavailable, the 2D
- * illustrated scene takes over.
+ * The hero scene in WebGL, filling its section. three.js and the scene code
+ * are loaded on demand, so they stay out of the initial bundle. If WebGL is
+ * unavailable, the 2D illustrated scene takes over below the copy.
  */
 export function PitScene3D() {
   const host = useRef<HTMLDivElement>(null);
@@ -30,15 +30,18 @@ export function PitScene3D() {
     };
   }, []);
 
-  if (status === "failed") return <PitScene />;
+  if (status === "failed") {
+    return (
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0">
+        <PitScene />
+      </div>
+    );
+  }
 
   return (
-    <div
-      aria-hidden="true"
-      className="relative mx-auto aspect-[4/3] w-full max-w-[1320px] select-none sm:aspect-[16/9] lg:aspect-[2.3/1]"
-    >
-      {/* Spotlight cone: plain CSS behind the transparent canvas */}
-      <div className="absolute inset-x-[8%] top-0 h-[70%] bg-linear-to-b from-accent/85 via-accent/35 to-amber/5 [clip-path:polygon(41%_0,59%_0,100%_100%,0_100%)]" />
+    <div aria-hidden="true" className="absolute inset-0 select-none">
+      {/* Spotlight cone, centred over the pit (the scene shifts it right on desktop). */}
+      <div className="absolute top-0 left-1/2 h-[84%] w-[110%] -translate-x-1/2 bg-linear-to-b from-accent/30 via-accent/40 to-amber/5 [clip-path:polygon(42%_0,58%_0,100%_100%,0_100%)] [mask-image:linear-gradient(to_bottom,black_55%,transparent)] lg:left-[73%] lg:w-[62%]" />
       <div
         ref={host}
         className={`absolute inset-0 transition-opacity duration-700 ${

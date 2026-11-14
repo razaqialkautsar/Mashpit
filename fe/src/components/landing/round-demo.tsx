@@ -5,8 +5,12 @@ import { useEffect, useRef, useState } from "react";
 // A scripted example round. Illustrative only: the real dashboard reads the
 // phase, bids and memos from the contract.
 const PHASES = ["Commit", "Reveal", "Awarded", "Exclusive", "Settled"] as const;
-const TICKS = 10; // per phase; one tick stands for 5 blocks
+const TICKS = 10; // per phase, sped up
 const TICK_MS = 580;
+// Phase lengths in blocks, from the deployed contract's get_config
+// (commit_blocks 100, reveal_blocks 100, grace_blocks 150). "Awarded" waits
+// until the job is due, which varies; 50 is an illustrative value.
+const PHASE_BLOCKS = [100, 100, 50, 150];
 
 const CAPTION = [
   "blocks left to commit",
@@ -93,7 +97,7 @@ export function RoundDemo() {
 
       <p className="mt-5 flex min-h-16 items-end gap-3.5">
         <b className="min-w-[1.3em] font-display text-[clamp(3rem,5vw,4.25rem)] leading-[0.9] font-semibold tracking-[-0.03em] text-glow">
-          {settled ? "✓" : (TICKS - tick) * 5}
+          {settled ? "✓" : Math.round((PHASE_BLOCKS[phase] * (TICKS - tick)) / TICKS)}
         </b>
         <span className="pb-1.5 text-[15px] font-bold">{CAPTION[phase]}</span>
       </p>

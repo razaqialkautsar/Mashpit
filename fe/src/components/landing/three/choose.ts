@@ -10,11 +10,11 @@ const TONES = {
   mono: { rest: 0xa9a6a2, lit: 0xffffff, dim: 0x6b6966, pill: [0xffffff, 0x1a0b05] },
 } as const;
 
-const HAND_SCALE = 0.78;
-const ARM_YAW = 0.75; // how far each arm swings out from straight ahead
-const PALM_TILT = 0.36; // tips the palm toward the viewer
-// In the hand's own space the sleeve ends this far behind the palm.
-const SLEEVE_REACH = 1.9 * HAND_SCALE;
+const HAND_SCALE = 0.92;
+const HAND_YAW = 0.45; // fingers point out and toward the viewer
+const PALM_TILT = 0.4; // tips the palm toward the viewer
+// Floating gloves, cartoon style: they hover beside the potato with a clear gap.
+const HAND_HOME = new THREE.Vector3(1.78, 0.78, -0.35);
 
 /**
  * The closing scene: the potato offers a pill in each hand.
@@ -46,17 +46,10 @@ export function mountChoose(host: HTMLElement) {
     hand.scale.set(-direction * HAND_SCALE, HAND_SCALE, HAND_SCALE); // mirrored: thumbs on the outside
     hand.rotation.x = PALM_TILT;
 
-    // Each arm is placed so the far end of its sleeve lands on the potato's
-    // shoulder, which keeps hand and body reading as one character.
-    const shoulder = new THREE.Vector3(direction * 0.62, 0.8, -1.0);
-    const yaw = direction * ARM_YAW;
-    const back = new THREE.Vector3(0, Math.sin(PALM_TILT), -Math.cos(PALM_TILT))
-      .multiplyScalar(SLEEVE_REACH)
-      .applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
     const arm = new THREE.Group();
     arm.add(hand);
-    arm.position.copy(shoulder).sub(back);
-    arm.rotation.y = yaw;
+    arm.position.set(direction * HAND_HOME.x, HAND_HOME.y, HAND_HOME.z);
+    arm.rotation.y = direction * HAND_YAW;
     scene.add(arm);
 
     const glow = createGlowDisc(
@@ -114,10 +107,11 @@ export function mountChoose(host: HTMLElement) {
     for (const s of sides) {
       const focus = s.focus.value;
       const up = Math.max(focus, 0);
-      // Growing from the palm pushes the sleeve deeper into the body, so the
-      // arm stays attached while the hand comes forward.
-      s.arm.scale.setScalar(1 + up * 0.16 - Math.max(-focus, 0) * 0.05);
-      s.arm.position.y = s.home.y + Math.sin(time * 1.5 + s.direction) * 0.03 + up * 0.08;
+      // Each glove drifts on its own rhythm; the chosen one grows and comes forward.
+      s.arm.scale.setScalar(1 + up * 0.2 - Math.max(-focus, 0) * 0.06);
+      s.arm.position.y = s.home.y + Math.sin(time * 1.5 + s.direction) * 0.07 + up * 0.1;
+      s.arm.position.z = s.home.z + up * 0.45;
+      s.arm.rotation.z = Math.sin(time * 1.1 + s.direction * 2) * 0.05;
       s.glove.color.copy(s.rest).lerp(focus >= 0 ? s.lit : s.dim, Math.abs(focus));
       s.glow.opacity = up * 0.55;
       // The pill hovers over the palm, higher and livelier when its side is picked.

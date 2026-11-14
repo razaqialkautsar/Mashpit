@@ -7,6 +7,12 @@ type StageOptions = {
   lookAt: THREE.Vector3;
   /** Half of the world width that must stay visible; the camera backs off on narrow screens. */
   halfWidth: number;
+  /**
+   * Optional per-size framing. Overrides halfWidth, and can slide the scene
+   * within the canvas (fractions of its width/height; positive moves it right/down)
+   * so DOM content can sit over the empty part.
+   */
+  frame?: (width: number, height: number) => { halfWidth: number; shiftX?: number; shiftY?: number };
 };
 
 export type Stage = ReturnType<typeof createStage>;
@@ -54,12 +60,19 @@ export function createStage(host: HTMLElement, options: StageOptions) {
     if (!w || !h) return;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
+    const frame = options.frame?.(w, h) ?? { halfWidth: options.halfWidth };
     const needed =
-      options.halfWidth / (Math.tan(THREE.MathUtils.degToRad(options.fov / 2)) * camera.aspect);
+      frame.halfWidth / (Math.tan(THREE.MathUtils.degToRad(options.fov / 2)) * camera.aspect);
     camera.position
       .copy(options.lookAt)
       .addScaledVector(direction, Math.max(baseDistance, needed));
     camera.lookAt(options.lookAt);
+    if (frame.shiftX || frame.shiftY) {
+      // Rendering a window offset the other way moves the scene inside the canvas.
+      camera.setViewOffset(w, h, -(frame.shiftX ?? 0) * w, -(frame.shiftY ?? 0) * h, w, h);
+    } else {
+      camera.clearViewOffset();
+    }
     camera.updateProjectionMatrix();
     render();
   };

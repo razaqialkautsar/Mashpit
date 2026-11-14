@@ -26,7 +26,7 @@ const facts = [
 
 export function Problem() {
   return (
-    <section id="problem" className="section-y border-t border-line">
+    <section id="problem" className="section-y">
       <div className="wrap grid gap-[clamp(32px,6vw,96px)] md:grid-cols-[0.9fr_1.1fr]">
         <div data-reveal>
           <h2 className={h2}>Contracts can’t call themselves.</h2>
@@ -106,9 +106,9 @@ export function HowItWorks() {
 
 const failover = [
   { at: "due", text: "k2 won the round and holds the job." },
-  { at: "+50 blk", text: "k2 never executes. The window closes." },
+  { at: "+150 blk", text: "k2 never executes. The window closes." },
   { at: "slash", text: "0.05 NEAR leaves k2’s stake and lands in your job balance." },
-  { at: "+61 blk", text: "k3 runs the call in open mode and gets paid." },
+  { at: "+152 blk", text: "k3 runs the call in open mode and gets paid." },
 ];
 
 export function HotPotato() {
@@ -120,7 +120,7 @@ export function HotPotato() {
             Hold it too long and you get burned.
           </h2>
           <p className="mt-5 max-w-[52ch] text-[clamp(1rem,1.3vw,1.125rem)] font-medium">
-            The winner gets 50 blocks to run the job. Miss that window and their stake is slashed,
+            The winner gets 150 blocks to run the job. Miss that window and their stake is slashed,
             you are compensated, and any keeper can grab the job.
           </p>
           <p className="mt-6 font-display text-xl font-semibold italic">

@@ -3,7 +3,8 @@
 import { useRef, type ReactNode } from "react";
 import { gsap, ScrollSmoother, ScrollTrigger, useGSAP } from "@/lib/gsap";
 
-const NAV_OFFSET = 72;
+// Anchors land just below the fixed 72px nav.
+const ANCHOR_OFFSET = 88;
 
 /**
  * Wraps the page in GSAP ScrollSmoother and wires the scroll-linked effects:
@@ -36,19 +37,21 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
           const target = link && document.querySelector(link.hash);
           if (!link || !target) return;
           e.preventDefault();
-          smoother.scrollTo(target, true, `top ${NAV_OFFSET}px`);
+          smoother.scrollTo(target, true, `top ${ANCHOR_OFFSET}px`);
           history.replaceState(null, "", link.hash);
         };
         document.addEventListener("click", onAnchorClick);
 
         const reveals = gsap.utils.toArray<HTMLElement>("[data-reveal]");
-        gsap.set(reveals, { autoAlpha: 0, y: 28 });
+        // Opacity, not autoAlpha: visibility:hidden would also hide these sections
+        // from screen readers until they are scrolled into view.
+        gsap.set(reveals, { opacity: 0, y: 28 });
         ScrollTrigger.batch(reveals, {
           start: "top 88%",
           once: true,
           onEnter: (batch) =>
             gsap.to(batch, {
-              autoAlpha: 1,
+              opacity: 1,
               y: 0,
               duration: 0.9,
               ease: "expo.out",

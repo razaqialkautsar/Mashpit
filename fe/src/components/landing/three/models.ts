@@ -208,8 +208,8 @@ export function createChairs(count: number) {
 // ── Hand and pill ─────────────────────────────────────────────────────────
 
 /**
- * A cartoon glove, palm up, fingers along +z. Mirror it with scale.x = -1.
- * Returns the glove material so a scene can tint it.
+ * A floating cartoon glove, palm up, fingers along +z, with no wrist or sleeve.
+ * Mirror it with scale.x = -1. Returns the glove material so a scene can tint it.
  */
 export function createHand(color: THREE.ColorRepresentation) {
   const hand = new THREE.Group();
@@ -238,21 +238,11 @@ export function createHand(color: THREE.ColorRepresentation) {
   );
   hand.add(thumbJoint);
 
-  const cuff = outlined(
-    new THREE.CylinderGeometry(0.44, 0.5, 0.24, 28).rotateX(Math.PI / 2),
-    toon(0xf2efe9),
-  );
-  cuff.position.z = -0.62;
-  cuff.scale.y = 0.62;
-  hand.add(cuff);
-
-  const sleeve = outlined(
-    new THREE.CylinderGeometry(0.52, 0.6, 1.2, 28).rotateX(Math.PI / 2),
-    toon(0x2b2623),
-  );
-  sleeve.position.z = -1.3;
-  sleeve.scale.y = 0.66;
-  hand.add(sleeve);
+  // A rounded heel closes the back of the palm, so the glove ends cleanly.
+  const heel = outlined(new THREE.SphereGeometry(0.5, 24, 16), glove);
+  heel.scale.set(1, 0.3, 0.5);
+  heel.position.z = -0.42;
+  hand.add(heel);
 
   return { hand, glove };
 }

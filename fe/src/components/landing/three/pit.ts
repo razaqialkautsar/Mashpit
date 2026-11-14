@@ -21,6 +21,12 @@ export function mountPit(host: HTMLElement) {
     cameraPosition: new THREE.Vector3(0, 4.6, 11.5),
     lookAt: new THREE.Vector3(0, 0.8, 0),
     halfWidth: 4.7,
+    // Desktop: the pit sits right of centre and the headline overlays its left side.
+    // Narrower screens: the pit drops below the headline.
+    frame: (w, h) =>
+      w >= 1024
+        ? { halfWidth: 6.9, shiftX: 0.23, shiftY: 0.05 }
+        : { halfWidth: 3.9, shiftY: w / h < 1 ? 0.27 : 0.2 },
   });
   const { scene, camera, canvas } = stage;
 
