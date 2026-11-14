@@ -46,7 +46,7 @@ export function Hero() {
             stagger={0.08}
             className="pointer-events-auto mt-7 flex flex-wrap justify-center gap-3 lg:justify-start"
           >
-            <ButtonLink href={routes.live}>Watch the live arena</ButtonLink>
+            <ButtonLink href={routes.live}>Open the live arena</ButtonLink>
             <ButtonLink href={routes.newJob} variant="ghost">
               Post a job
             </ButtonLink>
