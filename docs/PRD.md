@@ -409,9 +409,9 @@ Mashpit/
 │       ├── ai.ts                   # panggil NEAR AI Cloud, parse keputusan
 │       ├── fallback.ts             # aturan cadangan deterministik
 │       └── config.ts
-├── web/
+├── fe/                             # Next.js (D4)
 │   ├── package.json
-│   ├── .env.example                # VITE_CONTRACT_ID, VITE_NETWORK, VITE_RPC_URL
+│   ├── .env.example                # NEXT_PUBLIC_CONTRACT_ID, NEXT_PUBLIC_NETWORK, NEXT_PUBLIC_RPC_URL
 │   └── src/                        # detail di FRONTEND_SPEC.md §6
 └── scripts/
     ├── deploy.sh                   # build + deploy + init kontrak
@@ -452,7 +452,7 @@ Mashpit/
 | D1 | Siapa membangun keeper agent (TypeScript + NEAR AI)? | **Diputuskan 13 Nov: Razaqi** |
 | D2 | Setuju dengan batas MVP §0.1? | — |
 | D3 | Persona utama untuk pitch | P1 (operator protokol liquid staking) |
-| D4 | Framework web | Vite + React + TypeScript (situs statis). Keputusan Bayu |
+| D4 | Framework web | **Diputuskan 14 Nov: Next.js + TypeScript + Tailwind CSS**, di-build sebagai situs statis (`output: "export"`), folder `fe/`. Keputusan Bayu |
 | D5 | Hosting dashboard dan mesin keeper | **Keeper: diputuskan 13 Nov, Railway** (Root Directory `keeper`, satu repo). Dashboard: belum dipilih |
 | D6 | Angka: fee protokol, `min_keeper_stake`, batas bawah jaminan commit, `stake_multiplier` | Default usulan di SMART_CONTRACT_SPEC §3 |
 | D7 | Model AI untuk keeper | Pilih dari `/v1/models` setelah latensi diukur; kandidat termurah: `z-ai/glm-5.3-flash`, `openai/gpt-6-luna` |
