@@ -25,9 +25,16 @@ fn ctx(predecessor: &str, block: u64, deposit: u128) {
     testing_env!(b.build());
 }
 
+/// Tests below use 50-block windows (commit 100..150, reveal 150..200, grace 50).
 fn setup() -> Mashpit {
     ctx("owner.testnet", 100, 0);
-    Mashpit::new(acc("owner.testnet"), acc("treasury.testnet"), None)
+    let windows = ConfigPatch {
+        commit_blocks: Some(50),
+        reveal_blocks: Some(50),
+        grace_blocks: Some(50),
+        ..ConfigPatch::default()
+    };
+    Mashpit::new(acc("owner.testnet"), acc("treasury.testnet"), Some(windows))
 }
 
 fn job_input(max_reward: u128) -> JobInput {
@@ -66,12 +73,13 @@ fn reveal(c: &mut Mashpit, who: &str, job: JobId, bid: u128, salt: &str) {
 
 #[test]
 fn defaults_match_spec() {
-    let c = setup();
+    ctx("owner.testnet", 100, 0);
+    let c = Mashpit::new(acc("owner.testnet"), acc("treasury.testnet"), None);
     let cfg = c.get_config();
     assert_eq!(cfg.protocol_fee_bps, 500);
     assert_eq!(cfg.min_keeper_stake.0, NEAR);
     assert_eq!(cfg.min_commit_bond.0, NEAR / 10);
-    assert_eq!((cfg.commit_blocks, cfg.reveal_blocks, cfg.grace_blocks), (50, 50, 50));
+    assert_eq!((cfg.commit_blocks, cfg.reveal_blocks, cfg.grace_blocks), (100, 100, 150));
 }
 
 #[test]
@@ -275,4 +283,20 @@ fn round_view_exposes_commit_hash_for_bid_recovery() {
         .map(|step| NEAR / 10 * step / 100)
         .find(|b| commit_hash(*b, "s1", "k1.testnet").to_vec() == mine.hash.0);
     assert_eq!(recovered, Some(bid));
+}
+
+#[test]
+fn callback_outcome_rules() {
+    use crate::execute::outcome_for;
+    use near_sdk::PromiseError;
+    let any = SuccessRule::Any;
+    let rt = SuccessRule::ReturnsTrue;
+    assert_eq!(outcome_for(&Ok(vec![]), &any), Outcome::Paid);
+    assert_eq!(outcome_for(&Err(PromiseError::Failed), &any), Outcome::Failed);
+    assert_eq!(outcome_for(&Err(PromiseError::TooLong(5000)), &any), Outcome::Paid);
+    assert_eq!(outcome_for(&Ok(b"true".to_vec()), &rt), Outcome::Paid);
+    assert_eq!(outcome_for(&Ok(b"false".to_vec()), &rt), Outcome::ReturnedFalse);
+    assert_eq!(outcome_for(&Ok(vec![]), &rt), Outcome::ReturnedFalse);
+    assert_eq!(outcome_for(&Err(PromiseError::TooLong(5000)), &rt), Outcome::ReturnedFalse);
+    assert_eq!(outcome_for(&Err(PromiseError::Failed), &rt), Outcome::Failed);
 }
