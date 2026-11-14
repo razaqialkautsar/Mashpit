@@ -17,12 +17,27 @@ export interface Config {
   // Drain mode: finish pending reveals and executions, but never commit to a new round.
   // Use it before stopping a keeper so no committed bond is left unrevealed.
   noNewBids: boolean;
+  // Jobs this keeper stops bidding on (it still reveals and executes what it already committed).
+  drainJobs: Set<number>;
+  funds: {
+    low: bigint; // withdraw rewards below this balance
+    critical: bigint; // stop committing new bids below this balance
+    minWithdraw: bigint; // smallest reward worth a withdraw_rewards call
+    checkMs: number;
+  };
   ai: {
     apiKey?: string;
     baseUrl: string;
     model: string;
     timeoutMs: number;
   };
+}
+
+/** "0.1" -> yoctoNEAR. */
+function nearToYocto(near: string): bigint {
+  const m = /^(\d+)(?:\.(\d{1,24}))?$/.exec(near.trim());
+  if (!m) throw new Error(`Not a NEAR amount: ${near}`);
+  return BigInt(m[1]) * 10n ** 24n + BigInt((m[2] ?? "").padEnd(24, "0"));
 }
 
 function required(name: string): string {
@@ -62,6 +77,20 @@ export function loadConfig(): Config {
     pollMs: Number(optional("POLL_MS", "3000")),
     skipExecute: optional("KEEPER_SKIP_EXECUTE", "false") === "true",
     noNewBids: optional("KEEPER_DRAIN", "false") === "true",
+    drainJobs: new Set(
+      optional("KEEPER_DRAIN_JOBS", "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map(Number)
+        .filter(Number.isInteger),
+    ),
+    funds: {
+      low: nearToYocto(optional("LOW_BALANCE_NEAR", "0.1")),
+      critical: nearToYocto(optional("CRITICAL_BALANCE_NEAR", "0.03")),
+      minWithdraw: nearToYocto(optional("MIN_WITHDRAW_NEAR", "0.01")),
+      checkMs: Number(optional("FUNDS_CHECK_MS", "300000")),
+    },
     ai: {
       apiKey: process.env.NEAR_AI_API_KEY?.trim() || undefined,
       baseUrl: optional("NEAR_AI_BASE_URL", "https://cloud-api.near.ai/v1"),
