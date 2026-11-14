@@ -95,7 +95,7 @@ export function LiveJobs({
                       <td className={`${td} min-w-[150px]`}>
                         {clock ? (
                           <>
-                            <span className={`block font-semibold ${j.phase === "Open" ? "text-amber" : "text-ink"}`}>{clock.short}</span>
+                            <span className={`block font-semibold ${j.phase === "Open" && d?.is_due ? "text-amber" : "text-ink"}`}>{clock.short}</span>
                             {j.phase === "Exclusive" && (
                               <span className="mt-1.5 block h-1 w-full max-w-[150px] overflow-hidden rounded-full bg-surface-3">
                                 <span
@@ -140,7 +140,7 @@ export function LiveJobs({
                       <PhasePill phase={j.phase} />
                     </span>
                     <span className="flex items-center justify-between gap-3 text-[13px]">
-                      <span className={`truncate ${j.phase === "Open" ? "text-amber" : "text-ink-2"}`}>
+                      <span className={`truncate ${j.phase === "Open" && d?.is_due ? "text-amber" : "text-ink-2"}`}>
                         {j.winner
                           ? `${initials(j.winner)} · ${clock?.short ?? ""} ${clock?.hint ?? ""}`
                           : clock
