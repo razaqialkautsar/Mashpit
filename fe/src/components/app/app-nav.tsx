@@ -118,7 +118,7 @@ export function AppNav({ back, hideTabs = false }: { back?: MobileBack; hideTabs
       {!hideTabs && (
         <nav
           aria-label="Dashboard"
-          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
         >
           {links.map(({ href, label, icon: Icon }) => {
             const active = isActive(path, href);
