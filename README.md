@@ -9,7 +9,13 @@ user deposits with a validator and returned `true`. The keeper was paid for it
 ([transaction](https://testnet.nearblocks.io/txns/GcdTUemupyBHbLDKqPrLBbEoArjCQwqnyPbkzSjpmE95)).
 When a call has nothing to do or fails, nobody is paid.
 
-Built for NEAR Hackathon 2026, AI Swarms track. **Testnet only, not audited.**
+**Live dashboard:** [mashpit-near.vercel.app](https://mashpit-near.vercel.app) ·
+[proof page](https://mashpit-near.vercel.app/proof) · contract
+[`contract.mashpit.testnet`](https://testnet.nearblocks.io/address/contract.mashpit.testnet)
+
+Built for NEAR Hackathon 2026, tracks **AI Swarms** (agents competing in a sealed-bid market) and
+**Open Innovation** (a pay-on-proof primitive for scheduled execution that any NEAR contract can
+use). **Testnet only, not audited.**
 
 ## Verify in 5 minutes
 
@@ -29,7 +35,7 @@ The checks still work if the keepers are offline.
 | Keepers have executed and been slashed over time | `near contract call-function as-read-only contract.mashpit.testnet list_keepers json-args '{}' network-config testnet now` | `executed` and `slashed` counts per keeper (130 paid runs and 4 slashes in total on 14 Nov 2026) |
 | The contract logic is tested, including callbacks | `cd contracts/mashpit && cargo test --lib` | `test result: ok. 18 passed` (on Windows without Visual Studio Build Tools, see [the contract README](contracts/mashpit/README.md#windows-without-visual-studio-build-tools)) |
 | The keeper's hashing, restart recovery and safety rules are tested | `cd keeper && npm install && npm test` | `pass 9` |
-| The dashboard reads all of this from chain | `cd fe && npm install && npm run dev`, then open `http://localhost:3000/proof` | Runs paid, slashes, failed runs and the NEAR paid for them (0), the third-party contracts served, read live from the contract |
+| The dashboard reads all of this from chain | Open [mashpit-near.vercel.app/proof](https://mashpit-near.vercel.app/proof) (or run it locally, below) | Runs paid, slashes, failed runs and the NEAR paid for them (0), the third-party contracts served, read live from the contract |
 
 ## The problem
 
@@ -81,7 +87,7 @@ sustainability. The evidence for each:
 | Criterion | Evidence |
 | --- | --- |
 | Technical implementation | Cross-contract calls with a callback that never panics and maps every result (`Paid`, `Failed`, `ReturnedFalse`, `Slashed`); commit-reveal auction; slashing; upgrades without migration ([`4ryjYDwS…`](https://testnet.nearblocks.io/txns/4ryjYDwStZP3Dr8NVwYCyJZJraGAwvG2dSZjGmqHEPKq), [`DgRJJs7i…`](https://testnet.nearblocks.io/txns/DgRJJs7iAZGsjgaRaQdbKtMRbMbbzAuPiYD8b19rYn5Q), [`6ZyrAvAC…`](https://testnet.nearblocks.io/txns/6ZyrAvACp7YWbbAzhC7VpKPtmWirBaXpeMJqonZgDXxm)); keepers with function-call keys, failure backoff, multi-RPC failover and restart-safe bids. 18 contract tests and 9 keeper tests; an end-to-end run on testnet on 14 Nov 2026 covered posting, bidding, a tie, execution, a failing target, a failover, top-up, pause, resume and close |
-| Design | A live dashboard read straight from chain: the current round's sealed bids and AI reasons, a heat track of the round's phases, job pages with owner actions, keepers, and a [`/proof`](fe/src/app/proof) page. A guided `/new` form with a keeper-readiness checklist |
+| Design | A live dashboard read straight from chain: the current round's sealed bids and AI reasons, a heat track of the round's phases, job pages with owner actions, keepers, and a [`/proof`](https://mashpit-near.vercel.app/proof) page. A guided `/new` form with a keeper-readiness checklist |
 | Impact | Runs LiNEAR's real testnet routine: rewards for four validators and staking of user deposits (284.94 NEAR in one run). Any NEAR contract with a periodic method can be posted |
 | Originality | Payment on proof, a sealed-bid market per job, and agents whose reasoning is on chain. See "What's new here, and prior art" |
 | Sustainability | A 5% protocol fee on paid runs (0.0291 NEAR collected on testnet so far). Keepers earn their bid minus the fee and refuel their gas from rewards. Job owners pay competitive prices instead of running their own bots |
@@ -108,7 +114,7 @@ sustainability. The evidence for each:
 - **Testnet only, not audited.** The contract account's full-access key is held by the team, so the team can upgrade the code.
 - **No `near-sandbox` integration tests yet.** Cross-contract behaviour is covered by unit tests that drive the callback with mocked results, plus the end-to-end run on testnet listed above.
 - **Closed jobs leave no history in the contract.** `close_job` deletes the job and refunds its storage. The failure and failover examples above came from test jobs that were closed afterwards, so they are linked by transaction rather than shown on the dashboard.
-- **Hosting.** The dashboard runs locally (`npm run dev`); it is not hosted yet. The reference keepers are run by the team, and while they are offline, due jobs wait until any registered keeper runs them.
+- **Keepers are run by the team.** The dashboard is hosted at [mashpit-near.vercel.app](https://mashpit-near.vercel.app), but the three reference keepers are operated by the team. While they are offline, due jobs wait until any registered keeper runs them.
 - **Capital for every-epoch jobs.** A winner keeps 10 × the max reward locked until the job is due, up to one epoch, so keepers need stake for every job they hold.
 - **NEAR Intents is not used.** Keepers are paid in NEAR by the contract. Paying them out to other chains through NEAR Intents would need mainnet, since Intents has no testnet.
 - **The model is not a TEE model.** `anthropic/claude-haiku-5-5` is not among the models NEAR AI Cloud's `/v1/models` describes as running in a TEE, so bids are not decided in private inference.
@@ -124,8 +130,9 @@ sustainability. The evidence for each:
 
 ## Run the dashboard
 
-The dashboard reads the contract straight from public RPC every 3 seconds. There is no backend and
-no mock data. Viewing needs no wallet; posting or managing a job connects one through NEAR Connect.
+The dashboard is live at [mashpit-near.vercel.app](https://mashpit-near.vercel.app). It reads the
+contract straight from public RPC every 3 seconds. There is no backend and no mock data. Viewing
+needs no wallet; posting or managing a job connects one through NEAR Connect. To run it locally:
 
 ```sh
 cd fe
@@ -147,7 +154,7 @@ npm run dev                  # http://localhost:3000
 
 ## Post a job
 
-Open `/new` on the dashboard, connect a testnet wallet, and fill in your contract, method,
+Open [`/new`](https://mashpit-near.vercel.app/new) on the dashboard, connect a testnet wallet, and fill in your contract, method,
 arguments, gas, schedule (every epoch or every N blocks), success rule and max reward. Your method
 must be callable by the Mashpit contract with no attached deposit and be safe to call again. The
 deposit pays the job's storage and must leave at least one max reward as balance. You can top up,
