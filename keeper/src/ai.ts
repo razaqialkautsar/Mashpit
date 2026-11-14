@@ -60,8 +60,9 @@ export async function aiDecision(cfg: Config, input: DecisionInput): Promise<Dec
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.ai.apiKey}` },
       body: JSON.stringify({
         model: cfg.ai.model,
-        temperature: 0.4,
-        max_tokens: 300,
+        // No temperature: some models (e.g. openai/gpt-5-nano) accept only their default.
+        // Room for reasoning models, which spend tokens before answering; billing is per token used.
+        max_tokens: 800,
         messages: [
           { role: "system", content: `${SYSTEM}\nYour strategy: ${PERSONA[input.strategy]}` },
           { role: "user", content: prompt(input) },
@@ -73,7 +74,10 @@ export async function aiDecision(cfg: Config, input: DecisionInput): Promise<Dec
       console.warn(`[ai] HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
       return null;
     }
-    const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const body = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    };
     const text = body.choices?.[0]?.message?.content ?? "";
     const json = text.match(/\{[\s\S]*\}/)?.[0];
     if (!json) {
@@ -91,6 +95,9 @@ export async function aiDecision(cfg: Config, input: DecisionInput): Promise<Dec
       step,
       reason: `AI (${cfg.ai.model}): ${String(parsed.reason ?? "").slice(0, 220)}`,
       source: "ai",
+      usage: body.usage
+        ? { prompt: body.usage.prompt_tokens ?? 0, completion: body.usage.completion_tokens ?? 0 }
+        : undefined,
     };
   } catch (err) {
     console.warn(`[ai] ${err instanceof Error && err.name === "AbortError" ? "timeout" : String(err)}`);

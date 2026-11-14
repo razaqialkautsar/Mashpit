@@ -29,7 +29,8 @@ export interface Decision {
   participate: boolean;
   step: number; // 0..100, bid = max_reward × step / 100
   reason: string;
-  source: "ai" | "fallback";
+  source: "ai" | "fallback" | "cache";
+  usage?: { prompt: number; completion: number }; // AI tokens, when the model reports them
 }
 
 const MARGIN: Record<Strategy, number> = { aggressive: 1.2, balanced: 1.5, conservative: 2.0 };

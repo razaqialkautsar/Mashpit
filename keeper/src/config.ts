@@ -66,7 +66,7 @@ export function loadConfig(): Config {
       apiKey: process.env.NEAR_AI_API_KEY?.trim() || undefined,
       baseUrl: optional("NEAR_AI_BASE_URL", "https://cloud-api.near.ai/v1"),
       model: optional("NEAR_AI_MODEL", ""),
-      timeoutMs: Number(optional("NEAR_AI_TIMEOUT_MS", "8000")),
+      timeoutMs: Number(optional("NEAR_AI_TIMEOUT_MS", "15000")),
     },
   };
 }

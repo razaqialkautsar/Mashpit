@@ -94,13 +94,40 @@ async function decide(job: JobView): Promise<Decision> {
     return { participate: false, step: 100, reason: "Skip: job balance below max reward.", source: "fallback" };
   }
 
+  const floor = Math.max(0, minProfitableStep(input, 1));
+  const signature = marketSignature(job, input, floor);
+  const cached = aiCache.get(job.id);
+  if (cached && cached.signature === signature && Date.now() - cached.at < AI_CACHE_MS) {
+    return { ...cached.decision, source: "cache", usage: undefined, reason: `${cached.decision.reason} (cached)` };
+  }
+
   const ai = await aiDecision(cfg, input);
   if (!ai) return rule;
-  const floor = Math.max(0, minProfitableStep(input, 1));
-  if (ai.participate && ai.step < floor) {
-    return { ...ai, step: Math.min(100, floor), reason: `${ai.reason} (raised to breakeven ${floor}%)` };
-  }
-  return ai;
+  const decision =
+    ai.participate && ai.step < floor
+      ? { ...ai, step: Math.min(100, floor), reason: `${ai.reason} (raised to breakeven ${floor}%)` }
+      : ai;
+  aiCache.set(job.id, { signature, decision, at: Date.now() });
+  if (ai.usage) log(`job ${job.id}: AI used ${ai.usage.prompt}+${ai.usage.completion} tokens`);
+  return decision;
+}
+
+// ---------- AI decision cache ----------
+// Ask the model again only when the market changes (break-even, competitors, previous winning
+// bid, last outcome) or the cached answer is older than AI_CACHE_MS. Cuts AI cost on fast jobs.
+
+const AI_CACHE_MS = Number(process.env.AI_CACHE_MS ?? 30 * 60_000);
+const aiCache = new Map<number, { signature: string; decision: Decision; at: number }>();
+
+function marketSignature(job: JobView, input: DecisionInput, breakeven: number): string {
+  const last = input.history.at(-1);
+  return [
+    job.max_reward,
+    breakeven,
+    input.previousRound?.commits ?? "-",
+    input.previousRound?.winningBid?.toString() ?? "-",
+    last ? `${last.outcome}:${last.executor === me}` : "-",
+  ].join("|");
 }
 
 async function handleCommit(job: JobView) {
