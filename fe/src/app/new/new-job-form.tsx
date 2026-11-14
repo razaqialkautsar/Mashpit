@@ -9,8 +9,9 @@ import {
   CircleCheck,
   CircleDot,
   Circle,
-  Code,
   Droplets,
+  FlaskConical,
+  ListChecks,
   Loader,
   PenLine,
   TriangleExclamationPoint,
@@ -38,12 +39,13 @@ type Form = {
   deposit: string;
 };
 
-// Real testnet targets from docs/SMART_CONTRACT_SPEC.md §11.
-const templates: { id: string; label: string; method: string; icon: LucideIcon; form: Partial<Form> }[] = [
+// Real testnet calls that need a keeper (docs/SMART_CONTRACT_SPEC.md §11). They are
+// examples to try Mashpit without a contract of your own; the form is for any contract.
+const examples: { id: string; label: string; text: string; icon: LucideIcon; form: Partial<Form> }[] = [
   {
     id: "linear",
-    label: "LiNEAR rewards",
-    method: "epoch_update_rewards",
+    label: "LiNEAR: record staking rewards",
+    text: "LiNEAR is a liquid staking protocol. This call records one validator's new rewards, once per epoch.",
     icon: Droplets,
     form: {
       target: "linear-protocol.testnet",
@@ -56,15 +58,29 @@ const templates: { id: string; label: string; method: string; icon: LucideIcon; 
   },
   {
     id: "ping",
-    label: "Staking pool ping",
-    method: "ping",
+    label: "Staking pool: ping",
+    text: "Keeps a validator pool's reported rewards current. Validator docs say to ping once per epoch.",
     icon: Activity,
     form: { target: "aurora.pool.f863973.m0", method: "ping", args: "{}", gas: "60", scheduleKind: "epoch", rule: "Any" },
   },
-  { id: "custom", label: "Custom call", method: "any method", icon: Code, form: { target: "", method: "", args: "{}", gas: "50" } },
 ];
 
-const initial: Form = { ...(templates[0].form as Form), interval: "300", maxReward: "0.05", deposit: "1.00" };
+const initial: Form = {
+  target: "",
+  method: "",
+  args: "{}",
+  gas: "50",
+  scheduleKind: "epoch",
+  interval: "300",
+  rule: "Any",
+  maxReward: "0.05",
+  deposit: "1.00",
+};
+
+// Testnet: 43,200 blocks per epoch (protocol config) at ~0.58 s per block, so about 7 h.
+const EPOCH_BLOCKS = 43_200;
+const BLOCK_SECONDS = 0.58;
+const minutes = (blocks: number) => Math.round((blocks * BLOCK_SECONDS) / 60);
 
 const REGISTER_GAS = "100000000000000"; // 100 Tgas
 const ACCOUNT_RE = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
@@ -77,7 +93,7 @@ export function NewJobForm() {
   const router = useRouter();
   const { signedAccountId, signIn, callFunction } = useNearWallet();
   const [config, setConfig] = useState<Config>();
-  const [template, setTemplate] = useState(templates[0].id);
+  const [example, setExample] = useState<string>();
   const [f, setF] = useState<Form>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -87,6 +103,17 @@ export function NewJobForm() {
   }, []);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((p) => ({ ...p, [k]: v }));
+  // Editing the call itself turns an example into your own job.
+  const setCall = (k: "target" | "method" | "args", v: string) => {
+    setExample(undefined);
+    set(k, v);
+  };
+  const pickExample = (id: string) => {
+    const ex = examples.find((e) => e.id === id);
+    if (!ex) return;
+    setExample(id);
+    setF((p) => ({ ...p, ...ex.form }));
+  };
 
   // ---- validation, mirroring register_job (SMART_CONTRACT_SPEC §4.3) ----
   const gas = Number(f.gas);
@@ -155,13 +182,16 @@ export function NewJobForm() {
   }
 
   const gasHint =
-    templates.find((t) => t.id === template)?.id === "linear" ? "LiNEAR needs at least 125 Tgas for this call." : "Gas for the target call alone.";
+    example === "linear"
+      ? "LiNEAR needs at least 125 Tgas for this call."
+      : "Gas for your method alone. Unused gas is refunded to the keeper that runs it.";
+  const callGasLimit = config ? maxGas - config.callback_gas_tgas - config.overhead_gas_tgas : undefined;
 
   return (
     <div className="grid gap-6 md:gap-8">
       <PageHeader
         title="Throw a job into the pit"
-        lede="Register a contract call. Keepers bid for every run, and you only pay for runs that succeed."
+        lede="Schedule a call on your own contract. Keepers compete to run it, and you only pay for runs that succeed."
       />
 
       <form
@@ -174,59 +204,79 @@ export function NewJobForm() {
       >
         <Panel>
           <div className="divide-y divide-line">
-            <Row title="Template" text="Start from a real testnet job or write your own call.">
-              <fieldset className="grid gap-3 sm:grid-cols-3">
-                <legend className="sr-only">Template</legend>
-                {templates.map((t) => {
-                  const on = template === t.id;
-                  const Icon = t.icon;
-                  const Mark = on ? CircleDot : Circle;
-                  return (
-                    <label
-                      key={t.id}
-                      className={`relative flex cursor-pointer flex-col rounded-2xl border p-4 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-amber ${
-                        on ? "border-accent bg-accent-soft" : "border-line-strong bg-bg hover:border-ink-3"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="template"
-                        className="sr-only"
-                        checked={on}
-                        onChange={() => {
-                          setTemplate(t.id);
-                          setF((p) => ({ ...p, ...t.form }));
-                        }}
-                      />
-                      <span className="flex items-center justify-between">
-                        <Icon aria-hidden="true" className={`size-[18px] ${on ? "text-accent" : "text-ink-2"}`} />
-                        <Mark aria-hidden="true" className={`size-[18px] ${on ? "text-accent" : "text-ink-3"}`} />
-                      </span>
-                      <span className="mt-3 text-[15px] font-bold">{t.label}</span>
-                      <span className="mt-0.5 truncate font-mono text-xs text-ink-3">{t.method}</span>
-                    </label>
-                  );
-                })}
-              </fieldset>
-            </Row>
-
-            <Row title="Call" text="The method Mashpit calls on your behalf. Attached deposit is always 0.">
+            <Row step={1} title="Your contract" text="The method Mashpit calls for you on a schedule. Mashpit attaches no deposit.">
               <div className="grid gap-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Target contract" error={issues.target}>
-                    <input className={input} value={f.target} aria-invalid={!!issues.target} onChange={(e) => set("target", e.target.value.trim())} placeholder="app.testnet" spellCheck={false} autoCapitalize="off" />
+                  <Field label="Contract account" error={issues.target}>
+                    <input className={input} value={f.target} aria-invalid={!!issues.target} onChange={(e) => setCall("target", e.target.value.trim())} placeholder="your-app.testnet" spellCheck={false} autoCapitalize="off" />
                   </Field>
                   <Field label="Method" error={issues.method}>
-                    <input className={input} value={f.method} aria-invalid={!!issues.method} onChange={(e) => set("method", e.target.value.trim())} placeholder="ping" spellCheck={false} autoCapitalize="off" />
+                    <input className={input} value={f.method} aria-invalid={!!issues.method} onChange={(e) => setCall("method", e.target.value.trim())} placeholder="settle_round" spellCheck={false} autoCapitalize="off" />
                   </Field>
                 </div>
                 <Field label="Arguments (JSON)" error={issues.args}>
-                  <textarea className={`${input} min-h-[52px] resize-y`} rows={1} value={f.args} aria-invalid={!!issues.args} onChange={(e) => set("args", e.target.value)} spellCheck={false} />
+                  <textarea className={`${input} min-h-[52px] resize-y`} rows={1} value={f.args} aria-invalid={!!issues.args} onChange={(e) => setCall("args", e.target.value)} spellCheck={false} />
                 </Field>
+
+                <div className="rounded-2xl border border-line bg-bg/60 p-4">
+                  <p className="flex items-center gap-2 text-[13px] font-semibold text-ink-2">
+                    <FlaskConical aria-hidden="true" className="size-4 text-accent" />
+                    No contract at hand? Try a real testnet call that needs a keeper:
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {examples.map((ex) => {
+                      const on = example === ex.id;
+                      const Icon = ex.icon;
+                      return (
+                        <button
+                          key={ex.id}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => pickExample(ex.id)}
+                          className={`flex flex-col rounded-xl border p-3.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-amber ${
+                            on ? "border-accent bg-accent-soft" : "border-line-strong bg-bg hover:border-ink-3"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2 text-sm font-bold">
+                            <Icon aria-hidden="true" className={`size-4 shrink-0 ${on ? "text-accent" : "text-ink-2"}`} />
+                            {ex.label}
+                          </span>
+                          <span className="mt-1.5 text-[13px] leading-snug text-ink-3">{ex.text}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </Row>
 
-            <Row title="Gas" text={gasHint}>
+            <Row step={2} title="Is it keeper-ready?" text="Check your method before you post. A call that always fails never pays anyone.">
+              <ul className="grid gap-3 text-sm text-ink-2">
+                {[
+                  <>
+                    <b className="text-ink">Anyone may call it.</b> The caller will be the Mashpit contract (
+                    <code className="font-mono text-[13px] text-ink">{near.contractId}</code>), not your own bot account.
+                  </>,
+                  <>
+                    <b className="text-ink">No attached deposit.</b> Mashpit always calls with 0 NEAR attached.
+                  </>,
+                  <>
+                    <b className="text-ink">Safe to call again.</b> A failed run stays due and may be retried, so a repeated call must do no harm.
+                  </>,
+                  <>
+                    <b className="text-ink">Fits the gas limit.</b> At most {callGasLimit ?? "—"} Tgas for your method; Mashpit keeps the rest for the
+                    callback that checks the result.
+                  </>,
+                ].map((item, i) => (
+                  <li key={i} className="flex gap-3">
+                    <ListChecks aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </Row>
+
+            <Row step={3} title="Gas" text={gasHint}>
               <div className="grid items-end gap-4 sm:grid-cols-[180px_minmax(0,1fr)]">
                 <Field label="Gas for the call" error={issues.gas} suffix="Tgas">
                   <input className={`${input} pr-16`} inputMode="numeric" value={f.gas} aria-invalid={!!issues.gas} onChange={(e) => set("gas", e.target.value)} />
@@ -249,8 +299,9 @@ export function NewJobForm() {
             </Row>
 
             <Row
-              title="Schedule & rule"
-              text={`Every-N-blocks needs at least ${minInterval || "—"} blocks so the auction can finish.`}
+              step={4}
+              title="When it runs, and when it pays"
+              text={`An auction runs before every execution, so every-N-blocks needs at least ${minInterval || "—"} blocks (≈ ${minutes(minInterval)} min).`}
             >
               <div className="grid gap-4 xl:grid-cols-2">
                 <Field label="Schedule" as="div" error={issues.interval}>
@@ -260,10 +311,16 @@ export function NewJobForm() {
                     onChange={(v) => set("scheduleKind", v as Form["scheduleKind"])}
                     options={[["epoch", "Every epoch"], ["blocks", "Every N blocks"]]}
                   />
+                  {f.scheduleKind === "epoch" && (
+                    <span className="mt-2.5 block text-[13px] text-ink-3">
+                      About every {Math.round((EPOCH_BLOCKS * BLOCK_SECONDS) / 3600)} h on testnet, paid at most once per epoch.
+                      Good for staking and reward bookkeeping.
+                    </span>
+                  )}
                   {f.scheduleKind === "blocks" && (
                     <span className="mt-2.5 flex items-center gap-2">
                       <input aria-label="Interval in blocks" className={`${input} w-32`} inputMode="numeric" value={f.interval} aria-invalid={!!issues.interval} onChange={(e) => set("interval", e.target.value)} />
-                      <span className="text-sm text-ink-3">blocks ≈ {Math.round((Number(f.interval) || 0) * 0.58 / 60)} min</span>
+                      <span className="text-sm text-ink-3">blocks ≈ {minutes(Number(f.interval) || 0)} min</span>
                     </span>
                   )}
                 </Field>
@@ -274,13 +331,19 @@ export function NewJobForm() {
                     onChange={(v) => set("rule", v as SuccessRule)}
                     options={[["Any", "Call succeeds"], ["ReturnsTrue", "Returns true"]]}
                   />
+                  <span className="mt-2.5 block text-[13px] text-ink-3">
+                    {f.rule === "Any"
+                      ? "Pays when the call does not fail. Use it for methods that return nothing."
+                      : "Pays only when the method returns true. Use it when false means there was nothing to do."}
+                  </span>
                 </Field>
               </div>
             </Row>
 
             <Row
+              step={5}
               title="Money"
-              text={`Keepers bid at or below max reward. Fee is ${config ? config.protocol_fee_bps / 100 : "—"}% of what is paid.`}
+              text={`Max reward is your ceiling per run: keepers bid at or below it and the lowest bid wins. Fee is ${config ? config.protocol_fee_bps / 100 : "—"}% of what is paid. Close the job any time to get the balance back.`}
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Max reward per run" error={issues.maxReward} suffix="NEAR">
@@ -368,11 +431,16 @@ const input =
   "w-full rounded-xl border border-line-strong bg-bg px-3.5 py-3 font-mono text-[15px] text-ink outline-none transition-colors placeholder:text-ink-3/60 focus:border-ink-3 aria-[invalid=true]:border-bad";
 
 /** One form section: title and helper text on the left, fields on the right. */
-function Row({ title, text, children }: { title: string; text: string; children: ReactNode }) {
+function Row({ step, title, text, children }: { step?: number; title: string; text: string; children: ReactNode }) {
   return (
     <div className="grid gap-4 px-5 py-6 sm:px-7 md:grid-cols-[200px_minmax(0,1fr)] md:gap-8">
       <div>
-        <h2 className="font-sans text-base font-bold tracking-normal">{title}</h2>
+        <h2 className="flex items-center gap-2.5 font-sans text-base font-bold tracking-normal">
+          {step != null && (
+            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-3 text-xs font-bold text-ink">{step}</span>
+          )}
+          {title}
+        </h2>
         <p className="mt-1.5 text-[13px] text-ink-3">{text}</p>
       </div>
       <div className="min-w-0">{children}</div>
