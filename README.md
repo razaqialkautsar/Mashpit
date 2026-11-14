@@ -140,19 +140,24 @@ rules. Hold the job too long and your stake burns.
 
 ## Built with
 
-- Contract: Rust, [near-sdk](https://github.com/near/near-sdk-rs) 5.30, [cargo-near](https://github.com/near/cargo-near)
+- Contract: Rust, [near-sdk](https://github.com/near/near-sdk-rs) 5.30, [cargo-near](https://github.com/near/cargo-near); scaffolded with `cargo near new`
 - Keeper: TypeScript, [near-api-js](https://github.com/near/near-api-js) 7.5, tsx, [NEAR AI Cloud](https://cloud.near.ai) (OpenAI-compatible API)
-- Dashboard: Next.js, React, three.js, GSAP, lucide-react, NEAR Connect (`@hot-labs/near-connect`, `near-connect-hooks`)
+- Dashboard: Next.js (bootstrapped with `create-next-app`), React, three.js, GSAP, lucide-react, NEAR Connect (`@hot-labs/near-connect`, `near-connect-hooks`)
+- Third-party components: `AnimatedContent` and `SplitText` in [`fe/src/components/react-bits`](fe/src/components/react-bits), from [React Bits](https://reactbits.dev) under its own license ([MIT + Commons Clause](https://github.com/DavidHDev/react-bits/blob/main/LICENSE.md)), not this repository's MIT license
 - Public RPC: FastNEAR, dRPC, Intear and ZAN testnet endpoints
 - Built with AI coding assistance (Claude Code); all design decisions and reviews by the team
 
-All code in this repository was written during the hackathon.
+All code in this repository was written during the hackathon, apart from the templates and the
+third-party components listed above.
 
 ## Team
 
 - **Razaqi**: smart contract and keeper agent
 - **Bayu**: frontend
 
+Neither of us is in another NEAR HACKATHON project.
+
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE), except the third-party components listed under "Built with", which keep their own
+licenses.
