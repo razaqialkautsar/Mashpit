@@ -1,0 +1,739 @@
+{
+  "version": "2.22",
+  "children": [
+    {
+      "type": "frame",
+      "id": "u7Y5op",
+      "x": -342.9144592285156,
+      "y": -194.0965118408203,
+      "name": "Logo-reference",
+      "width": 320,
+      "height": 160,
+      "fill": "#444444ff",
+      "cornerRadius": 2,
+      "stroke": "#ffffff1a",
+      "strokeWidth": 1,
+      "strokeAlignment": "inner",
+      "layout": "none",
+      "children": [
+        {
+          "type": "ellipse",
+          "id": "L147t",
+          "x": 166.6568145751953,
+          "y": 115.50381469726562,
+          "name": "Ellipse 5",
+          "rotation": -173.03626250018445,
+          "flipX": true,
+          "sweepAngle": -360.00001001791264,
+          "fill": "#000000ff",
+          "width": 1.2343566417694092,
+          "height": 1.2359944581985474
+        },
+        {
+          "type": "ellipse",
+          "id": "c9nuPy",
+          "x": 168.66372680664062,
+          "y": 114.54267120361328,
+          "name": "Ellipse 6",
+          "rotation": -173.03626250018445,
+          "flipX": true,
+          "sweepAngle": -360.00001001791264,
+          "fill": "#000000ff",
+          "width": 0.744975745677948,
+          "height": 0.7459642291069031
+        },
+        {
+          "type": "ellipse",
+          "id": "L0ZsR",
+          "x": 168.66372680664062,
+          "y": 115.5560073852539,
+          "name": "Ellipse 7",
+          "rotation": -173.03626250018445,
+          "flipX": true,
+          "sweepAngle": -360.00001001791264,
+          "fill": "#000000ff",
+          "width": 0.744975745677948,
+          "height": 0.7459642291069031
+        },
+        {
+          "type": "group",
+          "id": "Uey0X",
+          "x": 20.914459228515625,
+          "y": 90.09651184082031,
+          "name": "Group 4",
+          "children": [
+            {
+              "type": "ellipse",
+              "id": "qsMd5",
+              "x": 0,
+              "y": 0,
+              "name": "Ellipse 16",
+              "sweepAngle": -360.00001001791264,
+              "fill": {
+                "type": "color",
+                "color": "#d9d9d9ff",
+                "enabled": false
+              },
+              "width": 76.59808349609375,
+              "height": 49.10169982910156,
+              "stroke": "#e6502bff",
+              "strokeWidth": 4,
+              "strokeAlignment": "inner",
+              "strokeLinecap": "round"
+            },
+            {
+              "type": "ellipse",
+              "id": "Rnuvi",
+              "x": 34.40411376953125,
+              "y": 15.885147094726562,
+              "name": "Ellipse 17",
+              "sweepAngle": -360.00001001791264,
+              "fill": "#e6502bff",
+              "width": 13.48486328125,
+              "height": 9.115951538085938
+            },
+            {
+              "type": "path",
+              "id": "Q7iKcu",
+              "x": 48.813201904296875,
+              "y": 37.49052429199219,
+              "name": "Vector 3",
+              "rotation": -145.87826012747894,
+              "geometry": "M0 13.99463c2.5478-3.07256 7.06023-9.40847 3.69827-11.31853 0 0 6.69125-0.12387 9.00219-2.6761-2.29475 2.53458-0.00141 6.97796-0.00141 6.97796-2.50016-0.31361-6.83728 1.3056-12.69905 7.01667z",
+              "fill": "#e6502bff",
+              "width": 12.700458526611328,
+              "height": 13.994630813598633,
+              "stroke": {
+                "type": "color",
+                "color": "#000000ff",
+                "enabled": false
+              },
+              "strokeWidth": 1
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "id": "zNnZT",
+          "x": 111.91445922851562,
+          "y": 110.88740084495575,
+          "name": "Subtract",
+          "children": [
+            {
+              "type": "ellipse",
+              "id": "CBsd1",
+              "x": 0,
+              "y": 0,
+              "name": "Ellipse 12",
+              "sweepAngle": -360.00001001791264,
+              "fill": "#d9d9d9ff",
+              "width": 57.4732666015625,
+              "height": 23.804763793945312
+            },
+            {
+              "type": "ellipse",
+              "id": "wxBoJ",
+              "x": 9.025924682617188,
+              "y": 3.3156814575195312,
+              "name": "Ellipse 13",
+              "sweepAngle": -360.00001001791264,
+              "fill": "#e6502bff",
+              "width": 39.421356201171875,
+              "height": 17.173843383789062
+            }
+          ]
+        },
+        {
+          "type": "path",
+          "id": "GXAzM",
+          "x": 156.49545288085938,
+          "y": 117.44588015403778,
+          "name": "Vector 1",
+          "rotation": -144.44781118511673,
+          "geometry": "M0 0c2.85694 8.32243 24.47125 19.37683 16.47655 4.19682 0.13552 7.94957-3.35429 11.55872 9.10802 14.08771-8.61043-0.06644-24.7711-12.1377-25.58457-18.28453z",
+          "fill": "#d9d9d9ff",
+          "width": 25.58457374572754,
+          "height": 18.284534454345703
+        },
+        {
+          "type": "path",
+          "id": "ZBMOL",
+          "x": 127.84085083007812,
+          "y": 114.73930666770966,
+          "name": "Vector 2",
+          "rotation": -82.04218671239394,
+          "geometry": "M0 0c2.85694 8.32243 24.47125 19.37683 16.47655 4.19682 0.13552 7.94957-3.35429 11.55872 9.10802 14.08771-8.61043-0.06644-24.7711-12.1377-25.58457-18.28453z",
+          "fill": "#d9d9d9ff",
+          "width": 11.931282997131348,
+          "height": 12.619585990905762
+        },
+        {
+          "type": "group",
+          "id": "DXSTB",
+          "x": 125.36010668522385,
+          "y": 102.09651184082031,
+          "name": "Subtract",
+          "children": [
+            {
+              "type": "ellipse",
+              "id": "NCXlW",
+              "x": 19.996953747210227,
+              "y": 17.465508530664096,
+              "name": "Ellipse 14",
+              "rotation": -90,
+              "sweepAngle": -360.00001001791264,
+              "fill": "#d9d9d9ff",
+              "width": 9.489381790161133,
+              "height": 9.489381790161133
+            },
+            {
+              "type": "path",
+              "id": "xxGOj",
+              "x": 30.58186604732009,
+              "y": 14.526909330749817,
+              "name": "Vector 2",
+              "rotation": -144.44781118511673,
+              "geometry": "M0 0c2.11288 4.51737 20.654 15.50016 13.91409 2.70268 0.11425 6.70186-1.5186 8.97915 7.01733 12.35027-6.67038-0.83196-20.24562-9.87088-20.93142-15.05295z",
+              "fill": "#d9d9d9ff",
+              "width": 24.828277587890625,
+              "height": 17.85540199279785,
+              "stroke": "#000000ff",
+              "strokeWidth": 1.1861727237701416,
+              "strokeLinejoin": "round"
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "id": "JLRpD",
+          "x": 195.91445922851562,
+          "y": 44.09651184082031,
+          "name": "Group 7",
+          "children": [
+            {
+              "type": "group",
+              "id": "ubCnP",
+              "x": 0,
+              "y": 0,
+              "name": "Group 5",
+              "children": [
+                {
+                  "type": "ellipse",
+                  "id": "wwxyL",
+                  "x": 6.432669639587402,
+                  "y": 6.432675361633301,
+                  "name": "Ellipse 21",
+                  "enabled": false,
+                  "sweepAngle": -360.00001001791264,
+                  "fill": "#d9d9d9ff",
+                  "width": 53.67192077636719,
+                  "height": 53.67192077636719
+                },
+                {
+                  "type": "ellipse",
+                  "id": "b7aVx",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Ellipse 16",
+                  "sweepAngle": -360.00001001791264,
+                  "fill": {
+                    "type": "color",
+                    "color": "#d9d9d9ff",
+                    "enabled": false
+                  },
+                  "width": 66.53726196289062,
+                  "height": 66.53726196289062,
+                  "stroke": "#e6502bff",
+                  "strokeWidth": 7.112015247344971,
+                  "strokeAlignment": "inner",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "ellipse",
+                  "id": "pkAwa",
+                  "x": 12.893988609313965,
+                  "y": 45.051103591918945,
+                  "name": "Ellipse 17",
+                  "enabled": false,
+                  "sweepAngle": -360.00001001791264,
+                  "fill": "#e6502bff",
+                  "width": 8.11319351196289,
+                  "height": 8.11319351196289
+                },
+                {
+                  "type": "ellipse",
+                  "id": "S7WIIU",
+                  "x": 29.212020874023438,
+                  "y": 51.99141502380371,
+                  "name": "Ellipse 18",
+                  "sweepAngle": -360.00001001791264,
+                  "fill": "#e6502bff",
+                  "width": 8.11319351196289,
+                  "height": 8.11319351196289
+                },
+                {
+                  "type": "ellipse",
+                  "id": "fkjtp",
+                  "x": 29.212020874023438,
+                  "y": 6.432675361633301,
+                  "name": "Ellipse 22",
+                  "sweepAngle": -360.00001001791264,
+                  "fill": "#e6502bff",
+                  "width": 8.11319351196289,
+                  "height": 8.11319351196289
+                },
+                {
+                  "type": "ellipse",
+                  "id": "GHFsW",
+                  "x": 45.03809356689453,
+                  "y": 45.562089920043945,
+                  "name": "Ellipse 19",
+                  "enabled": false,
+                  "sweepAngle": -360.00001001791264,
+                  "fill": "#e6502bff",
+                  "width": 8.11319351196289,
+                  "height": 8.11319351196289
+                },
+                {
+                  "type": "ellipse",
+                  "id": "DgD1h",
+                  "x": 13.576004981994629,
+                  "y": 12.57950210571289,
+                  "name": "Ellipse 24",
+                  "enabled": false,
+                  "sweepAngle": -360.00001001791264,
+                  "fill": "#e6502bff",
+                  "width": 8.11319351196289,
+                  "height": 8.11319351196289
+                },
+                {
+                  "type": "ellipse",
+                  "id": "rgOG6",
+                  "x": 45.62287521362305,
+                  "y": 13.39821720123291,
+                  "name": "Ellipse 25",
+                  "enabled": false,
+                  "sweepAngle": -360.00001001791264,
+                  "fill": "#e6502bff",
+                  "width": 8.11319351196289,
+                  "height": 8.11319351196289
+                },
+                {
+                  "type": "ellipse",
+                  "id": "gm1Ij",
+                  "x": 52.348331451416016,
+                  "y": 29.21204376220703,
+                  "name": "Ellipse 20",
+                  "sweepAngle": -360.00001001791264,
+                  "fill": "#e6502bff",
+                  "width": 8.11319351196289,
+                  "height": 8.11319351196289
+                },
+                {
+                  "type": "ellipse",
+                  "id": "VSiKI",
+                  "x": 6.432669639587402,
+                  "y": 29.21204376220703,
+                  "name": "Ellipse 23",
+                  "sweepAngle": -360.00001001791264,
+                  "fill": "#e6502bff",
+                  "width": 8.11319351196289,
+                  "height": 8.11319351196289
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "v1nhm",
+              "x": 27.052967071533203,
+              "y": 26.98464012145996,
+              "name": "Group 6",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 10.981792449951172,
+                  "id": "eq8c8",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Rectangle 10",
+                  "fill": "#e6502bff",
+                  "width": 12.431368827819824,
+                  "height": 12.567994117736816
+                },
+                {
+                  "type": "rectangle",
+                  "id": "T26Hga",
+                  "x": 5.013713836669922,
+                  "y": 27.3050594329834,
+                  "name": "Rectangle 12",
+                  "rotation": 90,
+                  "fill": "#e6502bff",
+                  "width": 18.47719955444336,
+                  "height": 2.4038047790527344
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "F5LzE",
+      "x": -8,
+      "y": -194,
+      "name": "Logo-fix",
+      "width": 320,
+      "height": 160,
+      "fill": "#444444ff",
+      "cornerRadius": 2,
+      "stroke": "#ffffff1a",
+      "strokeWidth": 1,
+      "strokeAlignment": "inner",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "VEirt",
+          "x": 109,
+          "y": 45.5,
+          "name": "logoMashpitFix.svg",
+          "clip": true,
+          "width": 102,
+          "height": 69,
+          "layout": "none",
+          "children": [
+            {
+              "type": "path",
+              "id": "Ey5Og",
+              "x": 0,
+              "y": 0,
+              "geometry": "M27.773 0c15.34 0 27.774 12.435 27.774 27.773l0 33.493-16.797 0 0-33.493c0-6.062-4.915-10.977-10.978-10.977-7.608 0-13.776 4.915-13.776 10.977l0 33.493-13.996 0 0-33.493c0-15.338 12.435-27.773 27.773-27.773",
+              "fill": {
+                "type": "gradient",
+                "gradientType": "linear",
+                "enabled": true,
+                "rotation": -180,
+                "size": {
+                  "height": 0.9999999566639052
+                },
+                "colors": [
+                  {
+                    "color": "#E6502B",
+                    "position": 0.628
+                  },
+                  {
+                    "color": "#802D18",
+                    "position": 1
+                  }
+                ],
+                "center": {
+                  "x": 0.4999909906476154,
+                  "y": 0.4999999783319526
+                }
+              },
+              "width": 55.547000885009766,
+              "height": 61.2660026550293
+            },
+            {
+              "type": "path",
+              "id": "AwdP8",
+              "x": 55.547000885009766,
+              "y": 34.31700134277344,
+              "geometry": "M0 0l41.306 0 0 10.943c-0.00055 3.09201-2.50698 5.59845-5.599 5.599l-35.707 0 0-16.542z",
+              "fill": {
+                "type": "gradient",
+                "gradientType": "linear",
+                "enabled": true,
+                "rotation": 90,
+                "size": {
+                  "height": 0.9275408842477628
+                },
+                "colors": [
+                  {
+                    "color": "#E6502B",
+                    "position": 0
+                  },
+                  {
+                    "color": "#802D18",
+                    "position": 1
+                  }
+                ],
+                "center": {
+                  "x": 0.463770420698184,
+                  "y": 0.49993947217798435
+                }
+              },
+              "width": 41.30599594116211,
+              "height": 16.54199981689453
+            },
+            {
+              "type": "path",
+              "id": "EeRfR",
+              "x": 41.305999755859375,
+              "y": 0,
+              "geometry": "M27.774 0c15.338 0 27.773 12.435 27.773 27.774l0 6.547-16.796 0 0-6.547c0-6.062-4.915-10.978-10.977-10.978-7.609 0-13.777 4.916-13.777 10.978l0 33.492-13.997 0 0-33.492c0-15.339 12.435-27.774 27.774-27.774",
+              "fill": "#E6502B",
+              "width": 55.54700469970703,
+              "height": 61.26599884033203
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "r7d0C",
+      "x": -583,
+      "y": -27,
+      "name": "web-design-reference",
+      "width": 560,
+      "height": 388,
+      "fill": "#444444ff",
+      "cornerRadius": 2,
+      "stroke": "#ffffff1a",
+      "strokeWidth": 1,
+      "strokeAlignment": "inner",
+      "layout": "none",
+      "children": [
+        {
+          "type": "rectangle",
+          "id": "IJVyM",
+          "x": 313.9144592285156,
+          "y": 25.391590118408203,
+          "fill": {
+            "type": "image",
+            "enabled": true,
+            "url": "images/web-reference%20(2).png",
+            "mode": "cover"
+          },
+          "width": 219,
+          "height": 337
+        },
+        {
+          "type": "rectangle",
+          "id": "OXLb1",
+          "x": 25.914459228515625,
+          "y": 25.391590118408203,
+          "fill": {
+            "type": "image",
+            "enabled": true,
+            "url": "images/image.png",
+            "mode": "cover"
+          },
+          "width": 277.3333333333333,
+          "height": 208
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "id": "QvWua",
+      "x": -334,
+      "y": -173,
+      "name": "Group 2",
+      "children": [
+        {
+          "type": "ellipse",
+          "id": "bMgTP",
+          "x": 0,
+          "y": 0,
+          "name": "Ellipse 16",
+          "sweepAngle": -360.00001001791264,
+          "fill": {
+            "type": "color",
+            "color": "#d9d9d9ff",
+            "enabled": false
+          },
+          "width": 76.59808349609375,
+          "height": 49.10169982910156,
+          "stroke": "#000000ff",
+          "strokeWidth": 4,
+          "strokeAlignment": "inner",
+          "strokeLinecap": "round"
+        },
+        {
+          "type": "ellipse",
+          "id": "SXzcr",
+          "x": 34.40411376953125,
+          "y": 15.885147094726562,
+          "name": "Ellipse 17",
+          "sweepAngle": -360.00001001791264,
+          "fill": "#000000ff",
+          "width": 13.48486328125,
+          "height": 9.115951538085938
+        },
+        {
+          "type": "path",
+          "id": "MWBIX",
+          "x": 48.813201904296875,
+          "y": 37.49052429199219,
+          "name": "Vector 3",
+          "rotation": -145.87826012747894,
+          "geometry": "M0 13.99463c2.5478-3.07256 7.06023-9.40847 3.69827-11.31853 0 0 6.69125-0.12387 9.00219-2.6761-2.29475 2.53458-0.00141 6.97796-0.00141 6.97796-2.50016-0.31361-6.83728 1.3056-12.69905 7.01667z",
+          "fill": "#000000ff",
+          "width": 12.700458526611328,
+          "height": 13.994630813598633,
+          "stroke": {
+            "type": "color",
+            "color": "#000000ff",
+            "enabled": false
+          },
+          "strokeWidth": 1
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "id": "WWdqV",
+      "x": -251.8157196044922,
+      "y": -173,
+      "name": "Group 3",
+      "children": [
+        {
+          "type": "ellipse",
+          "id": "S79I5g",
+          "x": 0,
+          "y": 0,
+          "name": "Ellipse 16",
+          "sweepAngle": -360.00001001791264,
+          "fill": {
+            "type": "color",
+            "color": "#d9d9d9ff",
+            "enabled": false
+          },
+          "width": 76.59808349609375,
+          "height": 49.10169982910156,
+          "stroke": "#d9d9d9ff",
+          "strokeWidth": 4,
+          "strokeAlignment": "inner",
+          "strokeLinecap": "round"
+        },
+        {
+          "type": "ellipse",
+          "id": "B1IJz",
+          "x": 34.40411376953125,
+          "y": 15.885147094726562,
+          "name": "Ellipse 17",
+          "sweepAngle": -360.00001001791264,
+          "fill": "#d9d9d9ff",
+          "width": 13.48486328125,
+          "height": 9.115951538085938
+        },
+        {
+          "type": "path",
+          "id": "P6pVnk",
+          "x": 48.813201904296875,
+          "y": 37.49052429199219,
+          "name": "Vector 3",
+          "rotation": -145.87826012747894,
+          "geometry": "M0 13.99463c2.5478-3.07256 7.06023-9.40847 3.69827-11.31853 0 0 6.69125-0.12387 9.00219-2.6761-2.29475 2.53458-0.00141 6.97796-0.00141 6.97796-2.50016-0.31361-6.83728 1.3056-12.69905 7.01667z",
+          "fill": "#d9d9d9ff",
+          "width": 12.700458526611328,
+          "height": 13.994630813598633,
+          "stroke": {
+            "type": "color",
+            "color": "#000000ff",
+            "enabled": false
+          },
+          "strokeWidth": 1
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "rPxgQ",
+      "x": -7.341094970703125,
+      "y": -308.24019622802734,
+      "name": "mashpit",
+      "fill": "#e6502bff",
+      "content": "Mashpit",
+      "fontFamily": "Plus Jakarta Sans",
+      "fontSize": 55.70602035522461,
+      "fontWeight": "300",
+      "letterSpacing": -3.3423612213134763
+    },
+    {
+      "type": "text",
+      "id": "NSnPp",
+      "x": -11,
+      "y": -362,
+      "name": "mashpit",
+      "fill": "#e6502bff",
+      "content": "mashpit",
+      "fontFamily": "Plus Jakarta Sans",
+      "fontSize": 55.70602035522461,
+      "fontWeight": "300",
+      "letterSpacing": -3.3423612213134763
+    },
+    {
+      "type": "frame",
+      "id": "NKOdq",
+      "x": -8,
+      "y": -27,
+      "name": "Font-fix",
+      "width": 306,
+      "height": 143,
+      "fill": "#444444ff",
+      "cornerRadius": 2,
+      "stroke": "#ffffff1a",
+      "strokeWidth": 1,
+      "strokeAlignment": "inner",
+      "layout": "none",
+      "children": [
+        {
+          "type": "text",
+          "id": "WEWIi",
+          "x": 32,
+          "y": 38.513453372912764,
+          "name": "what is mashpit",
+          "fill": "#ffffffff",
+          "content": "Header",
+          "fontFamily": "Oddval Text",
+          "fontSize": 30.83413801932159,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "h4LBA",
+          "x": 158.44464904520115,
+          "y": 38,
+          "name": "what is mashpit",
+          "fill": "#e6512cff",
+          "content": "Mashpit",
+          "fontFamily": "Oddval Text",
+          "fontSize": 30.83413801932159,
+          "fontWeight": "600",
+          "fontStyle": "italic"
+        },
+        {
+          "type": "text",
+          "id": "S80Tb",
+          "x": 32,
+          "y": 76.728663737924,
+          "name": "Is an app",
+          "fill": "#ffffffff",
+          "content": "Plus Jakarta Sans",
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": 15.417069009660795,
+          "fontWeight": "300",
+          "letterSpacing": -0.9250241405796477
+        }
+      ]
+    }
+  ],
+  "fileToken": "d21fe223-9cbb-4221-8a14-c8615a720ecc",
+  "fonts": [
+    {
+      "name": "Oddval Text",
+      "url": "fonts/OddvalText-SemiBold.otf",
+      "weight": 600
+    },
+    {
+      "name": "Oddval Text",
+      "url": "fonts/OddvalText-SemiBoldItalic.otf",
+      "style": "italic",
+      "weight": 600
+    }
+  ]
+}

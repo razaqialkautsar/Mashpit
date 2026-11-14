@@ -1,7 +1,9 @@
 import { ChooseSide } from "@/components/landing/choose-side";
 import { Hero } from "@/components/landing/hero";
 import { Nav } from "@/components/landing/nav";
-import { Compare, Footer, HotPotato, HowItWorks, Problem } from "@/components/landing/sections";
+import { Footer } from "@/components/landing/footer";
+import { HotPotato } from "@/components/landing/hot-potato";
+import { Compare, HowItWorks, Problem } from "@/components/landing/sections";
 import { SmoothScroll } from "@/components/landing/smooth-scroll";
 
 export default function LandingPage() {
