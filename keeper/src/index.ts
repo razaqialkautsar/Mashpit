@@ -13,6 +13,7 @@ import { deriveSalt, commitHashBase64, gridBid, recoverBid, truncateUtf8 } from 
 import { loadConfig } from "./config.ts";
 import { estimateCost, fallbackDecision, minProfitableStep, type Decision, type DecisionInput } from "./fallback.ts";
 import { Mashpit, contractError, type ContractConfig, type JobView } from "./near.ts";
+import { BID_FAIL_LIMIT, RECENT_RUNS, fundsAction, nextAttemptBlock, recentFailedRuns, roundFailures } from "./policy.ts";
 
 const cfg = loadConfig();
 const mp = new Mashpit(cfg);
@@ -24,10 +25,18 @@ const lastTry = new Map<string, number>(); // action key -> block of last attemp
 const seenRounds = new Map<number, { roundId: number; commits: number; winningBid: bigint | null }>();
 const previousRound = new Map<number, { commits: number; winningBid: bigint | null }>();
 let contractConfig: ContractConfig & { protocol_fee_bps: number };
+let lowFunds = false; // set by checkFunds: no new commits while the balance is critically low
+const noted = new Set<string>(); // log-once keys
 
 const RETRY_BLOCKS = 5;
 const log = (msg: string) => console.log(`${new Date().toISOString()} [${me}] ${msg}`);
 const near = (y: bigint | string) => (Number(BigInt(y)) / 1e24).toFixed(4);
+const logOnce = (key: string, msg: string) => {
+  if (!noted.has(key)) {
+    noted.add(key);
+    log(msg);
+  }
+};
 
 function shouldTry(key: string, block: number): boolean {
   const last = lastTry.get(key);
@@ -88,6 +97,15 @@ async function decide(job: JobView): Promise<Decision> {
     strategy: cfg.strategy,
   };
 
+  const failed = recentFailedRuns(history);
+  if (failed >= BID_FAIL_LIMIT) {
+    return {
+      participate: false,
+      step: 100,
+      reason: `Skip: the target call failed in ${failed} of the last ${RECENT_RUNS} runs; failed calls pay nobody and cost gas.`,
+      source: "fallback",
+    };
+  }
   const rule = fallbackDecision(input);
   if (!rule.participate && input.freeStake < input.requiredStake) return rule; // hard limit
   if (BigInt(job.balance) < maxReward) {
@@ -133,6 +151,8 @@ function marketSignature(job: JobView, input: DecisionInput, breakeven: number):
 async function handleCommit(job: JobView) {
   const r = job.round;
   if (cfg.noNewBids || r.commits.some((c) => c.keeper === me)) return;
+  if (cfg.drainJobs.has(job.id)) return logOnce(`drain:${job.id}`, `job ${job.id}: KEEPER_DRAIN_JOBS, no new bids`);
+  if (lowFunds) return logOnce(`low:${job.id}:${r.round_id}`, `job ${job.id} round ${r.round_id}: balance critically low, not bidding`);
   if (job.current_block >= r.commit_end - 3) return; // too late to land in the commit phase
   const key = `commit:${job.id}:${r.round_id}`;
   if (!shouldTry(key, job.current_block)) return;
@@ -197,6 +217,15 @@ async function execute(job: JobView, why: string) {
     return;
   }
   if (!shouldTry(`execute:${job.id}:${job.round.round_id}`, job.current_block)) return;
+  // A failed call keeps the job due. Back off, and give the round up after repeated failures.
+  const failures = roundFailures(await mp.history(job.id), job.round.round_id);
+  const next = nextAttemptBlock(failures);
+  if (next === null) {
+    return logOnce(`giveup:${job.id}:${job.round.round_id}`, `job ${job.id} round ${job.round.round_id}: target failed ${failures.count} times, giving the round up`);
+  }
+  if (job.current_block < next) {
+    return logOnce(`backoff:${job.id}:${job.round.round_id}:${failures.count}`, `job ${job.id}: target failed ${failures.count}x, retrying from block ${next}`);
+  }
   const gas = Math.min(
     contractConfig.max_total_gas_tgas,
     job.gas_tgas + contractConfig.callback_gas_tgas + contractConfig.overhead_gas_tgas + 10,
@@ -215,6 +244,8 @@ async function handleJob(job: JobView) {
   trackRound(job);
   const r = job.round;
   const winner = r.winner && !r.winner.settled ? r.winner.keeper : null;
+  // A drained job only gets this keeper's own obligations: its reveals and the runs it won.
+  const drained = cfg.drainJobs.has(job.id);
 
   switch (job.phase) {
     case "Commit":
@@ -224,7 +255,8 @@ async function handleJob(job: JobView) {
     case "AwaitingFinalize": {
       const expected = expectedWinner(job);
       if (job.is_due) {
-        if (expected === me || expected === null) return execute(job, expected ? "winner" : "no bids");
+        if (expected === me) return execute(job, "winner");
+        if (expected === null) return drained ? undefined : execute(job, "no bids");
         return poke(job); // finalizes the round and starts the winner's window
       }
       if (expected === me && shouldTry(`finalize:${job.id}:${r.round_id}`, job.current_block)) {
@@ -236,8 +268,8 @@ async function handleJob(job: JobView) {
       if (winner === me) return execute(job, "exclusive window");
       return poke(job);
     case "Open":
-      if (job.is_due) return execute(job, winner && winner !== me ? `${winner} missed its window` : "open round");
-      return;
+      if (!job.is_due || (drained && winner !== me)) return;
+      return execute(job, winner && winner !== me ? `${winner} missed its window` : "open round");
     default:
       return; // Awarded (not due yet), InFlight, Paused, Closed
   }
@@ -293,8 +325,46 @@ async function tick(): Promise<number> {
   return Math.max(cfg.pollMs, idle);
 }
 
+// ---------- Contract config ----------
+// The owner can change the config (windows, gas cap, fee) at any time, so re-read it every few
+// minutes instead of only at start-up. A stale gas cap made executes fail with NotEnoughGas.
+
+let configReadAt = 0;
+async function refreshConfig() {
+  if (Date.now() - configReadAt < 5 * 60_000) return;
+  const next = (await mp.config()) as typeof contractConfig;
+  if (contractConfig && next.max_total_gas_tgas !== contractConfig.max_total_gas_tgas) {
+    log(`contract gas cap changed: ${contractConfig.max_total_gas_tgas} -> ${next.max_total_gas_tgas} Tgas`);
+  }
+  contractConfig = next;
+  configReadAt = Date.now();
+}
+
+// ---------- Funds ----------
+// Gas comes from the keeper account. Withdraw earned rewards when the balance runs low; stop
+// committing when it is critically low, so a commit is never left without gas to reveal it.
+
+let fundsCheckedAt = 0;
+async function checkFunds() {
+  if (Date.now() - fundsCheckedAt < cfg.funds.checkMs) return;
+  fundsCheckedAt = Date.now();
+  const [state, keeper] = await Promise.all([mp.account.getState(), mp.keeper()]);
+  const available = state.balance.available;
+  const rewards = keeper ? BigInt(keeper.rewards) : 0n;
+  const action = fundsAction(available, rewards, cfg.funds.low, cfg.funds.critical, cfg.funds.minWithdraw);
+  if (action === "withdraw") {
+    log(`balance ${near(available)} NEAR is low; withdrawing ${near(rewards)} NEAR of rewards`);
+    await send("withdraw_rewards", "withdraw_rewards", {}, 30);
+    fundsCheckedAt = 0; // re-check on the next tick
+  }
+  const wasLow = lowFunds;
+  lowFunds = action === "low";
+  if (lowFunds && !wasLow) log(`balance ${near(available)} NEAR is critically low and no rewards to withdraw: not bidding until topped up`);
+  if (!lowFunds && wasLow) log(`balance ${near(available)} NEAR: bidding again`);
+}
+
 async function main() {
-  contractConfig = (await mp.config()) as typeof contractConfig;
+  await refreshConfig();
   const keeper = await mp.keeper();
   if (!keeper) throw new Error(`${me} is not a registered keeper on ${cfg.contractId}`);
   log(
@@ -302,11 +372,14 @@ async function main() {
       `AI ${cfg.ai.apiKey && cfg.ai.model ? cfg.ai.model : "off (deterministic rule)"}, ` +
       `stake ${near(keeper.stake)} NEAR, rewards ${near(keeper.rewards)} NEAR` +
       (cfg.skipExecute ? ", SKIP_EXECUTE on" : "") +
-      (cfg.noNewBids ? ", DRAIN on (no new bids)" : ""),
+      (cfg.noNewBids ? ", DRAIN on (no new bids)" : "") +
+      (cfg.drainJobs.size ? `, draining jobs ${[...cfg.drainJobs].join(",")}` : ""),
   );
   for (;;) {
     let wait = cfg.pollMs;
     try {
+      await refreshConfig();
+      await checkFunds();
       wait = await tick();
     } catch (err) {
       log(`tick error: ${err instanceof Error ? err.message : String(err)}`);

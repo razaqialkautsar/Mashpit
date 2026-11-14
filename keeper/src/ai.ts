@@ -29,6 +29,7 @@ function prompt(input: DecisionInput): string {
       stake_locked_if_you_win_near: near(input.requiredStake),
       free_stake_near: near(input.freeStake),
       recent_executions: recent,
+      failed_runs_in_last_5: input.history.filter((h) => h.outcome !== "Slashed").slice(-5).filter((h) => h.outcome === "Failed").length,
       previous_round: input.previousRound
         ? {
             commits: input.previousRound.commits,
@@ -48,6 +49,7 @@ const SYSTEM = `You are a keeper agent in Mashpit, a sealed-bid market on NEAR w
 Rules: the LOWEST bid wins the exclusive right to execute the next run and is paid its bid minus the protocol fee, only if the call succeeds.
 The winner locks stake while it holds the round and is slashed if it misses its window. Bids are a whole percent (0-100) of max_reward.
 Bidding below breakeven_bid_percent loses money. Other keepers are also bidding.
+A "Failed" execution means the target call failed: nobody was paid, the executor still paid gas, and the winner can be slashed if it cannot execute in time. Be wary of jobs whose target keeps failing.
 Answer with ONLY a JSON object: {"participate": boolean, "bid_percent": integer 0-100, "reason": "one sentence, max 200 characters"}.`;
 
 export async function aiDecision(cfg: Config, input: DecisionInput): Promise<Decision | null> {
@@ -85,7 +87,8 @@ export async function aiDecision(cfg: Config, input: DecisionInput): Promise<Dec
       return null;
     }
     const parsed = JSON.parse(json) as { participate?: unknown; bid_percent?: unknown; reason?: unknown };
-    const step = Number(parsed.bid_percent);
+    // A "no" needs no bid: models often leave bid_percent out when they decline.
+    const step = parsed.participate === false && parsed.bid_percent === undefined ? 100 : Number(parsed.bid_percent);
     if (typeof parsed.participate !== "boolean" || !Number.isInteger(step) || step < 0 || step > 100) {
       console.warn(`[ai] invalid answer: ${json.slice(0, 200)}`);
       return null;
